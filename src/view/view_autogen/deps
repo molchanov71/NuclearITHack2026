@@ -1,0 +1,5 @@
+view_autogen/timestamp: \
+	/home/stepan/code/NuclearITHack2026/src/view/CMakeLists.txt \
+	/home/stepan/code/NuclearITHack2026/src/view/view.cpp \
+	/home/stepan/code/NuclearITHack2026/src/view/view.hpp \
+	/usr/sbin/cmake
