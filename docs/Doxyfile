@@ -1,0 +1,13 @@
+PROJECT_NAME           = "NuclearITHack2026"
+OUTPUT_DIRECTORY       = docs/build
+INPUT                  = main.cpp src
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+GENERATE_LATEX         = NO
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+OPTIMIZE_OUTPUT_FOR_C  = NO
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+PROJECT_BRIEF          = "Русская doxygen-документация по фундаменту узла LAN-first приложения."
+OUTPUT_LANGUAGE        = Russian

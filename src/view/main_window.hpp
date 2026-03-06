@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QStringList>
 #include <QString>
 
 class DependencyContainer;
@@ -32,6 +33,9 @@ private:
      * @return Новый виджет страницы, владение которым передаётся Qt.
      */
     QWidget *createPlaceholderPage(const QString &title, const QString &description) const;
+    QWidget *createListPage(const QString &title,
+                            const QString &description,
+                            const QStringList &lines) const;
 
     /** @brief Общие зависимости, используемые окном. */
     DependencyContainer &container_;
