@@ -128,3 +128,5 @@ CMakeLists.txt.user*
 *.cxxflags
 *.cflags
 NuclearITHack2026
+view_autogen/
+
