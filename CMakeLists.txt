@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2)
+cmake_minimum_required(VERSION 3.28)
 project(NuclearITHack2026)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -18,8 +18,13 @@ add_compile_options(-Wall -Wextra -Wpedantic -ggdb -fsanitize=leak)
 
 add_subdirectory(src)
 
-add_executable(NuclearITHack2026 main.cpp)
+add_executable(NuclearITHack2026
+        main.cpp
+        src/app/app_runtime.cpp
+        src/app/app_runtime.hpp
+)
 target_link_libraries(NuclearITHack2026 PRIVATE
+        app
         spdlog::spdlog_header_only    # или spdlog::spdlog для статической
         PkgConfig::SODIUM             # libsodium
         PkgConfig::OPUS               # libopus

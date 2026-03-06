@@ -1,7 +1,7 @@
-#include <iostream>
-#include "src/view/view.hpp"
+#include "src/app/app_runtime.hpp"
 
-int main()
+int main(int argc, char *argv[])
 {
-    return 0;
+    AppRuntime runtime(argc, argv);
+    return runtime.run();
 }
