@@ -1,2 +1,8 @@
+add_subdirectory(model)
+add_subdirectory(infrastructure)
 add_subdirectory(app)
+add_subdirectory(controller)
 add_subdirectory(view)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
