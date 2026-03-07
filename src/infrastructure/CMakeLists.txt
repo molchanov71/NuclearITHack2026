@@ -9,6 +9,8 @@ add_library(infrastructure STATIC
         network_services.hpp
         protocol.cpp
         protocol.hpp
+        repositories.cpp
+        repositories.hpp
         runtime_paths.cpp
         runtime_paths.hpp
 )

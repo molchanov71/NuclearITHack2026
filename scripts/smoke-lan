@@ -3,6 +3,14 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-cmake --preset default
-cmake --build --preset default
-ctest --preset default --test-dir "${ROOT_DIR}/build"
+PRESET="default"
+BUILD_DIR="${ROOT_DIR}/build"
+
+if command -v ninja >/dev/null 2>&1; then
+  PRESET="ninja"
+  BUILD_DIR="${ROOT_DIR}/build-ninja"
+fi
+
+cmake --preset "${PRESET}"
+cmake --build --preset "${PRESET}"
+ctest --preset "${PRESET}" --test-dir "${BUILD_DIR}"

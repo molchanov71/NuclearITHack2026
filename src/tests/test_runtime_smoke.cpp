@@ -35,6 +35,11 @@ void RuntimeSmokeTest::runtimeCreatesDataAndOpensDatabase()
     QVERIFY(QFileInfo::exists(config.securityDir + QStringLiteral("/identity_ed25519.pub")));
     QVERIFY(QFileInfo::exists(config.logDir + QStringLiteral("/runtime.log")));
     QVERIFY(container.database().connection().isOpen());
+    QCOMPARE(container.peerRepository().loadAll().size(), 1);
+    QCOMPARE(container.messageRepository().loadAll().size(), 1);
+    QCOMPARE(container.fileManifestRepository().loadAll().size(), 1);
+    QCOMPARE(container.transferRepository().loadAll().size(), 1);
+    QCOMPARE(container.metricsRepository().loadAll().size(), 1);
 
     container.shutdown();
 }

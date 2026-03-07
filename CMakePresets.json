@@ -8,9 +8,18 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "Default",
+      "displayName": "Default Makefiles",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ninja",
+      "displayName": "Ninja",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }

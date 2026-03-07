@@ -11,6 +11,7 @@
 #include "../infrastructure/log_service.hpp"
 #include "../infrastructure/network_services.hpp"
 #include "../infrastructure/protocol.hpp"
+#include "../infrastructure/repositories.hpp"
 #include "../infrastructure/runtime_paths.hpp"
 #include "../model/stores.hpp"
 
@@ -46,6 +47,11 @@ public:
     [[nodiscard]] const UiLogBuffer &uiLogBuffer() const;
     [[nodiscard]] const RuntimePaths &paths() const;
     [[nodiscard]] const Database &database() const;
+    [[nodiscard]] const PeerRepository &peerRepository() const;
+    [[nodiscard]] const MessageRepository &messageRepository() const;
+    [[nodiscard]] const TransferRepository &transferRepository() const;
+    [[nodiscard]] const MetricsRepository &metricsRepository() const;
+    [[nodiscard]] const FileManifestRepository &fileManifestRepository() const;
     [[nodiscard]] const IdentityService &identityService() const;
     [[nodiscard]] const MessageCodec &messageCodec() const;
     [[nodiscard]] NodeIdentityStore &nodeIdentityStore();
@@ -82,6 +88,16 @@ private:
     std::shared_ptr<spdlog::logger> logger_{};
     /** @brief SQLite база приложения. */
     Database database_{};
+    /** @brief Репозиторий peers. */
+    std::unique_ptr<PeerRepository> peerRepository_{};
+    /** @brief Репозиторий сообщений. */
+    std::unique_ptr<MessageRepository> messageRepository_{};
+    /** @brief Репозиторий передач файлов. */
+    std::unique_ptr<TransferRepository> transferRepository_{};
+    /** @brief Репозиторий метрик. */
+    std::unique_ptr<MetricsRepository> metricsRepository_{};
+    /** @brief Репозиторий файловых манифестов. */
+    std::unique_ptr<FileManifestRepository> fileManifestRepository_{};
     /** @brief Криптографический сервис локальной идентичности. */
     IdentityService identityService_{};
     /** @brief Единый codec control plane сообщений. */

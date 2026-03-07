@@ -16,6 +16,11 @@ void DependencyContainer::initialize(const AppConfig &config)
 
     database_.initialize(config_.dbPath);
     logger_->info("SQLite opened at {}", config_.dbPath.toStdString());
+    peerRepository_ = std::make_unique<PeerRepository>(database_.connection());
+    messageRepository_ = std::make_unique<MessageRepository>(database_.connection());
+    transferRepository_ = std::make_unique<TransferRepository>(database_.connection());
+    metricsRepository_ = std::make_unique<MetricsRepository>(database_.connection());
+    fileManifestRepository_ = std::make_unique<FileManifestRepository>(database_.connection());
 
     const IdentityMaterial identityMaterial = identityService_.initialize(paths_.securityDir);
     nodeIdentityStore_.setIdentity(NodeIdentity{
@@ -35,6 +40,7 @@ void DependencyContainer::initialize(const AppConfig &config)
             .trustLevel = TrustLevel::Trusted,
     });
     trustStore_.setTrustLevel(QStringLiteral("peer-demo"), TrustLevel::Trusted);
+    peerRepository_->save(*peerRegistry_.find(QStringLiteral("peer-demo")));
     sessionStore_.upsert(Session{
             .sessionId = QStringLiteral("session-demo"),
             .peerId = QStringLiteral("peer-demo"),
@@ -53,6 +59,7 @@ void DependencyContainer::initialize(const AppConfig &config)
             .direction = MessageDirection::Incoming,
             .deliveryStatus = MessageDeliveryStatus::Delivered,
     });
+    messageRepository_->save(messageStore_.all().constFirst());
     transferStore_.upsertManifest(FileManifest{
             .manifestId = QStringLiteral("manifest-demo"),
             .fileName = QStringLiteral("readme.txt"),
@@ -62,6 +69,7 @@ void DependencyContainer::initialize(const AppConfig &config)
             .chunkSize = 256,
             .chunkCount = 4,
     });
+    fileManifestRepository_->save(transferStore_.manifests().constFirst());
     transferStore_.upsertTransfer(FileTransfer{
             .transferId = QStringLiteral("transfer-demo"),
             .peerId = QStringLiteral("peer-demo"),
@@ -71,6 +79,7 @@ void DependencyContainer::initialize(const AppConfig &config)
             .bytesTotal = 1024,
             .updatedAt = QDateTime::currentDateTimeUtc(),
     });
+    transferRepository_->save(transferStore_.transfers().constFirst());
     metricsStore_.addSnapshot(MetricSnapshot{
             .peerId = QStringLiteral("peer-demo"),
             .sessionId = QStringLiteral("session-demo"),
@@ -80,6 +89,7 @@ void DependencyContainer::initialize(const AppConfig &config)
             .packetLoss = 0.1,
             .throughputKbps = 512,
     });
+    metricsRepository_->save(metricsStore_.all().constFirst());
 
     appController_ = std::make_unique<AppController>(config_, metricsStore_);
     peerController_ = std::make_unique<PeerController>(peerRegistry_);
@@ -137,6 +147,11 @@ void DependencyContainer::shutdown()
     fileChannelServer_.stop();
     voiceUdpTransport_.stop();
     database_.shutdown();
+    fileManifestRepository_.reset();
+    metricsRepository_.reset();
+    transferRepository_.reset();
+    messageRepository_.reset();
+    peerRepository_.reset();
     diagnosticsController_.reset();
     callController_.reset();
     fileTransferController_.reset();
@@ -172,6 +187,31 @@ const RuntimePaths &DependencyContainer::paths() const
 const Database &DependencyContainer::database() const
 {
     return database_;
+}
+
+const PeerRepository &DependencyContainer::peerRepository() const
+{
+    return *peerRepository_;
+}
+
+const MessageRepository &DependencyContainer::messageRepository() const
+{
+    return *messageRepository_;
+}
+
+const TransferRepository &DependencyContainer::transferRepository() const
+{
+    return *transferRepository_;
+}
+
+const MetricsRepository &DependencyContainer::metricsRepository() const
+{
+    return *metricsRepository_;
+}
+
+const FileManifestRepository &DependencyContainer::fileManifestRepository() const
+{
+    return *fileManifestRepository_;
 }
 
 const IdentityService &DependencyContainer::identityService() const
