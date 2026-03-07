@@ -28,10 +28,10 @@ hex:
   signal:
     base-path: /api/signal
   storage:
-    root: ./data
+    root: ${HEX_STORAGE_ROOT:${user.home}/.hex-team-app}
   files:
-    temp-dir: ./data/files/tmp
-    final-dir: ./data/files/final
+    temp-dir: ${HEX_FILES_TEMP_DIR:${hex.storage.root}/files/tmp}
+    final-dir: ${HEX_FILES_FINAL_DIR:${hex.storage.root}/files/final}
   metrics:
     enabled: true
 

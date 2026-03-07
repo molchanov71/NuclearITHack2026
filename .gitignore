@@ -1,0 +1,7 @@
+/target/
+/data/
+/.runtime-smoke/
+/.idea/
+/build/
+/build-ninja/
+/cmake-build-debug/
