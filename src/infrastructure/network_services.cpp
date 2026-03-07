@@ -332,6 +332,19 @@ void DiscoveryService::sendPacketToDiscoveryTargets(const QByteArray &packet)
     if (!sentDirectedBroadcast) {
         sendPacketToAddress(packet, QHostAddress::Broadcast, settings_.discoveryPort);
     }
+
+    for (auto it = knownPeers_.cbegin(); it != knownPeers_.cend(); ++it) {
+        const PeerDescriptor &peer = it.value();
+        for (const QString &address : peer.addresses) {
+            const QHostAddress hostAddress(address);
+            if (hostAddress.isNull()) {
+                continue;
+            }
+
+            const quint16 port = peer.discoveryPort != 0 ? peer.discoveryPort : settings_.discoveryPort;
+            sendPacketToAddress(packet, hostAddress, port);
+        }
+    }
 }
 
 void DiscoveryService::sendPacketToAddress(const QByteArray &packet, const QHostAddress &address, quint16 port)
