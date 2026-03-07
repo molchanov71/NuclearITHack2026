@@ -1,6 +1,7 @@
 package com.hexteam.app.discovery;
 
 import com.hexteam.app.config.HexProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hexteam.app.metrics.DiagnosticsService;
 import com.hexteam.app.security.NodeIdentity;
 import com.hexteam.app.security.NodeIdentityService;
@@ -18,7 +19,12 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.net.SocketException;
+import java.time.Duration;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -45,6 +51,7 @@ public class DiscoveryService {
     private final NetworkAddressResolver networkAddressResolver;
     private final DiagnosticsService diagnosticsService;
     private final Clock clock;
+    private final ObjectMapper objectMapper;
     private final int serverPort;
     private final AtomicLong sequence = new AtomicLong();
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -59,6 +66,7 @@ public class DiscoveryService {
                             NetworkAddressResolver networkAddressResolver,
                             DiagnosticsService diagnosticsService,
                             Clock clock,
+                            ObjectMapper objectMapper,
                             @Value("${server.port}") int serverPort) {
         this.properties = properties;
         this.identityService = identityService;
@@ -67,6 +75,7 @@ public class DiscoveryService {
         this.networkAddressResolver = networkAddressResolver;
         this.diagnosticsService = diagnosticsService;
         this.clock = clock;
+        this.objectMapper = objectMapper;
         this.serverPort = serverPort;
         startListener();
     }
@@ -124,6 +133,19 @@ public class DiscoveryService {
         }
     }
 
+    @Scheduled(fixedDelayString = "${hex.discovery.interval-ms:3000}", initialDelay = 1500)
+    public void probePeersOverHttp() {
+        if (!properties.getDiscovery().isProbeEnabled()) {
+            return;
+        }
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(properties.getDiscovery().getProbeTimeoutMs()))
+                .build();
+        networkAddressResolver.probeAddresses()
+                .parallelStream()
+                .forEach(address -> probeSingleAddress(client, address));
+    }
+
     @PreDestroy
     public void shutdown() {
         running.set(false);
@@ -167,6 +189,10 @@ public class DiscoveryService {
         }
     }
 
+    public DiscoveryAnnounce currentAnnounceSnapshot() {
+        return buildAnnounce();
+    }
+
     private DiscoveryAnnounce buildAnnounce() {
         NodeIdentity identity = identityService.currentIdentity();
         InetAddress localAddress = networkAddressResolver.resolvePrimaryAddress();
@@ -180,5 +206,30 @@ public class DiscoveryService {
                 Instant.now(clock),
                 sequence.incrementAndGet()
         );
+    }
+
+    private void probeSingleAddress(HttpClient client, InetAddress address) {
+        String localIp = networkAddressResolver.resolvePrimaryAddress().getHostAddress();
+        if (address.getHostAddress().equals(localIp)) {
+            return;
+        }
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://" + address.getHostAddress() + ":" + serverPort + "/api/discovery/probe"))
+                .timeout(Duration.ofMillis(properties.getDiscovery().getProbeTimeoutMs()))
+                .GET()
+                .build();
+        try {
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                return;
+            }
+            DiscoveryAnnounce announce = objectMapper.readValue(response.body(), DiscoveryAnnounce.class);
+            if (!announce.nodeId().equals(identityService.currentIdentity().nodeId())) {
+                peerRegistry.upsert(announce);
+                diagnosticsService.record("discovery", "HTTP probe обнаружил peer " + announce.displayName() + " по " + address.getHostAddress());
+            }
+        } catch (Exception ignored) {
+            // Для probe-сканирования отсутствие ответа — нормальный сценарий.
+        }
     }
 }

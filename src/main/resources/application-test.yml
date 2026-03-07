@@ -17,6 +17,8 @@ hex:
     port: 49091
     interval-ms: 3000
     ttl-ms: 2000
+    probe-enabled: false
+    probe-timeout-ms: 50
   signal:
     base-path: /api/signal
   storage:

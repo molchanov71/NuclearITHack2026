@@ -56,6 +56,11 @@ public class HexProperties {
         @Min(1000)
         private long ttlMs = 10000;
 
+        private boolean probeEnabled = true;
+
+        @Min(50)
+        private int probeTimeoutMs = 250;
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -86,6 +91,22 @@ public class HexProperties {
 
         public void setTtlMs(long ttlMs) {
             this.ttlMs = ttlMs;
+        }
+
+        public boolean isProbeEnabled() {
+            return probeEnabled;
+        }
+
+        public void setProbeEnabled(boolean probeEnabled) {
+            this.probeEnabled = probeEnabled;
+        }
+
+        public int getProbeTimeoutMs() {
+            return probeTimeoutMs;
+        }
+
+        public void setProbeTimeoutMs(int probeTimeoutMs) {
+            this.probeTimeoutMs = probeTimeoutMs;
         }
     }
 

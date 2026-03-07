@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -89,6 +90,28 @@ public class NetworkAddressResolver {
         return targets;
     }
 
+    public List<InetAddress> probeAddresses() {
+        PrimaryInterface primaryInterface = resolvePrimaryInterface();
+        if (primaryInterface == null) {
+            return List.of();
+        }
+        byte[] addressBytes = primaryInterface.address().getAddress();
+        int prefixLength = Math.max(primaryInterface.prefixLength(), 24);
+        int mask = prefixLength == 0 ? 0 : -1 << (32 - prefixLength);
+        int address = toInt(addressBytes);
+        int network = address & mask;
+        int broadcast = network | ~mask;
+
+        List<InetAddress> result = new ArrayList<>();
+        for (int current = network + 1; current < broadcast; current++) {
+            if (current == address) {
+                continue;
+            }
+            result.add(fromInt(current));
+        }
+        return result;
+    }
+
     private List<NetworkInterface> allInterfaces() {
         try {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
@@ -110,5 +133,44 @@ public class NetworkAddressResolver {
         } catch (SocketException exception) {
             return false;
         }
+    }
+
+    private PrimaryInterface resolvePrimaryInterface() {
+        for (NetworkInterface networkInterface : allInterfaces()) {
+            if (!isUsable(networkInterface)) {
+                continue;
+            }
+            for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                InetAddress address = interfaceAddress.getAddress();
+                if (address instanceof Inet4Address inet4Address && !inet4Address.isLoopbackAddress()) {
+                    return new PrimaryInterface(inet4Address, interfaceAddress.getNetworkPrefixLength());
+                }
+            }
+        }
+        return null;
+    }
+
+    private int toInt(byte[] bytes) {
+        return ((bytes[0] & 0xFF) << 24)
+                | ((bytes[1] & 0xFF) << 16)
+                | ((bytes[2] & 0xFF) << 8)
+                | (bytes[3] & 0xFF);
+    }
+
+    private InetAddress fromInt(int value) {
+        byte[] bytes = new byte[]{
+                (byte) ((value >> 24) & 0xFF),
+                (byte) ((value >> 16) & 0xFF),
+                (byte) ((value >> 8) & 0xFF),
+                (byte) (value & 0xFF)
+        };
+        try {
+            return InetAddress.getByAddress(bytes);
+        } catch (UnknownHostException exception) {
+            throw new IllegalStateException("Не удалось собрать адрес для probe", exception);
+        }
+    }
+
+    private record PrimaryInterface(Inet4Address address, short prefixLength) {
     }
 }
