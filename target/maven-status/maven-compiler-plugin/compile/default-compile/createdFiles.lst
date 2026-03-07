@@ -23,6 +23,7 @@ com/hexteam/app/ui/ChatView.class
 com/hexteam/app/config/HexProperties$Storage.class
 com/hexteam/app/persistence/TrustedPeerRepository.class
 com/hexteam/app/ui/MainLayout.class
+com/hexteam/app/discovery/NetworkAddressResolver.class
 com/hexteam/app/config/HexProperties$Metrics.class
 com/hexteam/app/signaling/SignalController.class
 com/hexteam/app/files/FileTransferService.class

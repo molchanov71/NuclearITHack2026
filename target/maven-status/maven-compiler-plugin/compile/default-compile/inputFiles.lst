@@ -9,6 +9,7 @@
 /home/stepan/programming/hack/NuclearITHack2026/src/main/java/com/hexteam/app/discovery/DiscoveryAnnounce.java
 /home/stepan/programming/hack/NuclearITHack2026/src/main/java/com/hexteam/app/discovery/DiscoveryCodec.java
 /home/stepan/programming/hack/NuclearITHack2026/src/main/java/com/hexteam/app/discovery/DiscoveryService.java
+/home/stepan/programming/hack/NuclearITHack2026/src/main/java/com/hexteam/app/discovery/NetworkAddressResolver.java
 /home/stepan/programming/hack/NuclearITHack2026/src/main/java/com/hexteam/app/discovery/PeerDescriptor.java
 /home/stepan/programming/hack/NuclearITHack2026/src/main/java/com/hexteam/app/discovery/PeerRegistry.java
 /home/stepan/programming/hack/NuclearITHack2026/src/main/java/com/hexteam/app/discovery/PeerState.java

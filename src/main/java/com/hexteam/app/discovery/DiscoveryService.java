@@ -16,9 +16,11 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,6 +41,7 @@ public class DiscoveryService {
     private final NodeIdentityService identityService;
     private final DiscoveryCodec codec;
     private final PeerRegistry peerRegistry;
+    private final NetworkAddressResolver networkAddressResolver;
     private final DiagnosticsService diagnosticsService;
     private final Clock clock;
     private final int serverPort;
@@ -52,6 +55,7 @@ public class DiscoveryService {
                             NodeIdentityService identityService,
                             DiscoveryCodec codec,
                             PeerRegistry peerRegistry,
+                            NetworkAddressResolver networkAddressResolver,
                             DiagnosticsService diagnosticsService,
                             Clock clock,
                             @Value("${server.port}") int serverPort) {
@@ -59,6 +63,7 @@ public class DiscoveryService {
         this.identityService = identityService;
         this.codec = codec;
         this.peerRegistry = peerRegistry;
+        this.networkAddressResolver = networkAddressResolver;
         this.diagnosticsService = diagnosticsService;
         this.clock = clock;
         this.serverPort = serverPort;
@@ -69,16 +74,23 @@ public class DiscoveryService {
     public void sendAnnounce() {
         DiscoveryAnnounce announce = buildAnnounce();
         byte[] payload = codec.write(announce);
+        List<InetAddress> broadcasts = networkAddressResolver.broadcastAddresses();
+        if (broadcasts.isEmpty()) {
+            diagnosticsService.record("discovery", "Не найдено broadcast-адресов для отправки announce");
+            return;
+        }
         try (DatagramSocket socket = new DatagramSocket()) {
             socket.setBroadcast(true);
-            DatagramPacket packet = new DatagramPacket(
-                    payload,
-                    payload.length,
-                    InetAddress.getByName("255.255.255.255"),
-                    properties.getDiscovery().getPort()
-            );
-            socket.send(packet);
-            diagnosticsService.record("discovery", "Отправлен announce seq=" + announce.seq());
+            for (InetAddress broadcastAddress : broadcasts) {
+                DatagramPacket packet = new DatagramPacket(
+                        payload,
+                        payload.length,
+                        broadcastAddress,
+                        properties.getDiscovery().getPort()
+                );
+                socket.send(packet);
+                diagnosticsService.record("discovery", "Отправлен announce seq=" + announce.seq() + " на " + broadcastAddress.getHostAddress());
+            }
         } catch (IOException exception) {
             log.warn("Не удалось отправить discovery announce", exception);
             diagnosticsService.record("discovery", "Ошибка отправки announce: " + exception.getMessage());
@@ -96,7 +108,10 @@ public class DiscoveryService {
 
     private void startListener() {
         try {
-            listenerSocket = new DatagramSocket(properties.getDiscovery().getPort());
+            listenerSocket = new DatagramSocket(null);
+            listenerSocket.setReuseAddress(true);
+            listenerSocket.setBroadcast(true);
+            listenerSocket.bind(new InetSocketAddress(properties.getDiscovery().getPort()));
             running.set(true);
             executor.submit(this::listenLoop);
         } catch (SocketException exception) {
@@ -127,11 +142,12 @@ public class DiscoveryService {
 
     private DiscoveryAnnounce buildAnnounce() {
         NodeIdentity identity = identityService.currentIdentity();
+        InetAddress localAddress = networkAddressResolver.resolvePrimaryAddress();
         return new DiscoveryAnnounce(
                 identity.nodeId(),
                 identity.displayName(),
                 "1.0",
-                "http://localhost:" + serverPort + properties.getSignal().getBasePath(),
+                "http://" + localAddress.getHostAddress() + ":" + serverPort + properties.getSignal().getBasePath(),
                 identity.fingerprint(),
                 Set.of("chat", "audio", "files", "metrics"),
                 Instant.now(clock),
