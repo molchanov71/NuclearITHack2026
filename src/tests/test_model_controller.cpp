@@ -33,6 +33,11 @@ void ModelControllerTest::storesSupportCrudOperations()
             .peerId = QStringLiteral("peer-1"),
             .displayName = QStringLiteral("Peer One"),
             .addresses = {QStringLiteral("10.0.0.1")},
+            .capabilities = {QStringLiteral("chat")},
+            .discoveryPort = 45454,
+            .controlPort = 45455,
+            .filePort = 45456,
+            .voicePort = 45457,
             .lastSeenAt = QDateTime::currentDateTimeUtc(),
             .status = PeerStatus::Online,
             .trustLevel = TrustLevel::Trusted,
@@ -115,10 +120,16 @@ void ModelControllerTest::controllersRenderExpectedLines()
     config.dataDir = QStringLiteral("/tmp/test-app");
 
     PeerRegistryModel peerRegistry;
+    PeersTableModel peersTableModel;
     peerRegistry.upsert(PeerDescriptor{
             .peerId = QStringLiteral("peer-1"),
             .displayName = QStringLiteral("Peer One"),
             .addresses = {QStringLiteral("127.0.0.1")},
+            .capabilities = {QStringLiteral("chat"), QStringLiteral("control")},
+            .discoveryPort = 45454,
+            .controlPort = 45455,
+            .filePort = 45456,
+            .voicePort = 45457,
             .lastSeenAt = QDateTime::currentDateTimeUtc(),
             .status = PeerStatus::Online,
             .trustLevel = TrustLevel::Trusted,
@@ -181,20 +192,25 @@ void ModelControllerTest::controllersRenderExpectedLines()
     trustStore.setTrustLevel(QStringLiteral("peer-1"), TrustLevel::Trusted);
 
     AppController appController(config, metricsStore);
-    PeerController peerController(peerRegistry);
+    PeerController peerController(peerRegistry, peersTableModel, config);
     SessionController sessionController(sessionStore);
     ChatController chatController(messageStore);
     FileTransferController fileTransferController(transferStore);
     CallController callController(metricsStore);
     DiagnosticsController diagnosticsController(identityStore, metricsStore, trustStore);
 
+    peerController.refresh();
     QVERIFY(appController.summaryLines().join('\n').contains(QStringLiteral("TestApp")));
     QVERIFY(peerController.peerLines().join('\n').contains(QStringLiteral("Peer One")));
+    QCOMPARE(peerController.tableModel().rowCount(), 1);
     QVERIFY(sessionController.sessionLines().join('\n').contains(QStringLiteral("session-1")));
     QVERIFY(chatController.chatLines().join('\n').contains(QStringLiteral("hello")));
     QVERIFY(fileTransferController.transferLines().join('\n').contains(QStringLiteral("transfer-1")));
     QVERIFY(callController.callLines().join('\n').contains(QStringLiteral("voice pipeline")));
     QVERIFY(diagnosticsController.diagnosticLines().join('\n').contains(QStringLiteral("node-1")));
+
+    peerController.addManualPeer(QStringLiteral("192.168.1.42"));
+    QVERIFY(peerRegistry.contains(QStringLiteral("manual-192.168.1.42")));
 }
 
 QTEST_APPLESS_MAIN(ModelControllerTest)

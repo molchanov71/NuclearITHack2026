@@ -28,6 +28,11 @@ struct PeerDescriptor
     QString peerId;
     QString displayName;
     QStringList addresses;
+    QStringList capabilities;
+    quint16 discoveryPort = 0;
+    quint16 controlPort = 0;
+    quint16 filePort = 0;
+    quint16 voicePort = 0;
     QDateTime lastSeenAt;
     PeerStatus status = PeerStatus::Offline;
     TrustLevel trustLevel = TrustLevel::Unknown;

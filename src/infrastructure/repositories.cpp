@@ -16,11 +16,11 @@ QDateTime fromIso(const QVariant &value)
     return QDateTime::fromString(value.toString(), Qt::ISODate);
 }
 
-QByteArray encodeAddresses(const QStringList &addresses)
+QByteArray encodeStringList(const QStringList &values)
 {
     QJsonArray array;
-    for (const QString &address : addresses) {
-        array.append(address);
+    for (const QString &value : values) {
+        array.append(value);
     }
 
     return QJsonDocument(array).toJson(QJsonDocument::Compact);
@@ -35,6 +35,16 @@ QStringList decodeAddresses(const QVariant &value)
     }
     return addresses;
 }
+
+QStringList decodeStringList(const QVariant &value)
+{
+    QStringList values;
+    const QJsonArray array = QJsonDocument::fromJson(value.toByteArray()).array();
+    for (const QJsonValue &entry : array) {
+        values.append(entry.toString());
+    }
+    return values;
+}
 }
 
 PeerRepository::PeerRepository(const QSqlDatabase &database)
@@ -45,11 +55,16 @@ PeerRepository::PeerRepository(const QSqlDatabase &database)
 bool PeerRepository::save(const PeerDescriptor &peer) const
 {
     QSqlQuery query(database_);
-    query.prepare("INSERT OR REPLACE INTO peers(peer_id, display_name, addresses, last_seen_at, status, trust_level) "
-                  "VALUES(?, ?, ?, ?, ?, ?)");
+    query.prepare("INSERT OR REPLACE INTO peers(peer_id, display_name, addresses, capabilities, discovery_port, control_port, file_port, voice_port, last_seen_at, status, trust_level) "
+                  "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     query.addBindValue(peer.peerId);
     query.addBindValue(peer.displayName);
-    query.addBindValue(encodeAddresses(peer.addresses));
+    query.addBindValue(encodeStringList(peer.addresses));
+    query.addBindValue(encodeStringList(peer.capabilities));
+    query.addBindValue(peer.discoveryPort);
+    query.addBindValue(peer.controlPort);
+    query.addBindValue(peer.filePort);
+    query.addBindValue(peer.voicePort);
     query.addBindValue(toIso(peer.lastSeenAt));
     query.addBindValue(static_cast<int>(peer.status));
     query.addBindValue(static_cast<int>(peer.trustLevel));
@@ -59,16 +74,21 @@ bool PeerRepository::save(const PeerDescriptor &peer) const
 QVector<PeerDescriptor> PeerRepository::loadAll() const
 {
     QVector<PeerDescriptor> peers;
-    QSqlQuery query(QStringLiteral("SELECT peer_id, display_name, addresses, last_seen_at, status, trust_level FROM peers"),
+    QSqlQuery query(QStringLiteral("SELECT peer_id, display_name, addresses, capabilities, discovery_port, control_port, file_port, voice_port, last_seen_at, status, trust_level FROM peers"),
                     database_);
     while (query.next()) {
         peers.append(PeerDescriptor{
                 .peerId = query.value(0).toString(),
                 .displayName = query.value(1).toString(),
                 .addresses = decodeAddresses(query.value(2)),
-                .lastSeenAt = fromIso(query.value(3)),
-                .status = static_cast<PeerStatus>(query.value(4).toInt()),
-                .trustLevel = static_cast<TrustLevel>(query.value(5).toInt()),
+                .capabilities = decodeStringList(query.value(3)),
+                .discoveryPort = static_cast<quint16>(query.value(4).toUInt()),
+                .controlPort = static_cast<quint16>(query.value(5).toUInt()),
+                .filePort = static_cast<quint16>(query.value(6).toUInt()),
+                .voicePort = static_cast<quint16>(query.value(7).toUInt()),
+                .lastSeenAt = fromIso(query.value(8)),
+                .status = static_cast<PeerStatus>(query.value(9).toInt()),
+                .trustLevel = static_cast<TrustLevel>(query.value(10).toInt()),
         });
     }
     return peers;

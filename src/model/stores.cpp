@@ -1,5 +1,7 @@
 #include "stores.hpp"
 
+#include <algorithm>
+
 void NodeIdentityStore::setIdentity(const NodeIdentity &identity)
 {
     identity_ = identity;
@@ -19,6 +21,17 @@ bool NodeIdentityStore::hasIdentity() const
 void PeerRegistryModel::upsert(const PeerDescriptor &peer)
 {
     peers_.insert(peer.peerId, peer);
+}
+
+bool PeerRegistryModel::updateStatus(const QString &peerId, PeerStatus status)
+{
+    const auto it = peers_.find(peerId);
+    if (it == peers_.end()) {
+        return false;
+    }
+
+    it->status = status;
+    return true;
 }
 
 bool PeerRegistryModel::remove(const QString &peerId)
@@ -49,6 +62,113 @@ QVector<PeerDescriptor> PeerRegistryModel::all() const
 qsizetype PeerRegistryModel::size() const
 {
     return peers_.size();
+}
+
+PeersTableModel::PeersTableModel(QObject *parent)
+    : QAbstractTableModel(parent)
+{
+}
+
+int PeersTableModel::rowCount(const QModelIndex &parent) const
+{
+    return parent.isValid() ? 0 : peers_.size();
+}
+
+int PeersTableModel::columnCount(const QModelIndex &parent) const
+{
+    return parent.isValid() ? 0 : 5;
+}
+
+QVariant PeersTableModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid() || index.row() < 0 || index.row() >= peers_.size()) {
+        return {};
+    }
+
+    const PeerDescriptor &peer = peers_.at(index.row());
+    if (role != Qt::DisplayRole) {
+        return {};
+    }
+
+    switch (index.column()) {
+    case 0:
+        return peer.displayName;
+    case 1:
+        return peer.peerId;
+    case 2:
+        return peer.capabilities.join(QStringLiteral(", "));
+    case 3:
+        return formatEndpoints(peer);
+    case 4:
+        return formatStatus(peer.status);
+    default:
+        return {};
+    }
+}
+
+QVariant PeersTableModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (orientation != Qt::Horizontal || role != Qt::DisplayRole) {
+        return QAbstractTableModel::headerData(section, orientation, role);
+    }
+
+    switch (section) {
+    case 0:
+        return QStringLiteral("Имя");
+    case 1:
+        return QStringLiteral("Node ID");
+    case 2:
+        return QStringLiteral("Capabilities");
+    case 3:
+        return QStringLiteral("IP / Ports");
+    case 4:
+        return QStringLiteral("Состояние");
+    default:
+        return {};
+    }
+}
+
+void PeersTableModel::refreshFromRegistry(const PeerRegistryModel &peerRegistry)
+{
+    beginResetModel();
+    peers_ = peerRegistry.all();
+    std::sort(peers_.begin(), peers_.end(), [](const PeerDescriptor &lhs, const PeerDescriptor &rhs) {
+        return lhs.displayName.toLower() < rhs.displayName.toLower();
+    });
+    endResetModel();
+}
+
+const PeerDescriptor *PeersTableModel::peerAt(int row) const
+{
+    if (row < 0 || row >= peers_.size()) {
+        return nullptr;
+    }
+
+    return &peers_.at(row);
+}
+
+QString PeersTableModel::formatStatus(PeerStatus status) const
+{
+    switch (status) {
+    case PeerStatus::Online:
+        return QStringLiteral("ONLINE");
+    case PeerStatus::Stale:
+        return QStringLiteral("STALE");
+    case PeerStatus::Offline:
+        return QStringLiteral("OFFLINE");
+    }
+
+    return QStringLiteral("UNKNOWN");
+}
+
+QString PeersTableModel::formatEndpoints(const PeerDescriptor &peer) const
+{
+    const QString address = peer.addresses.isEmpty() ? QStringLiteral("n/a") : peer.addresses.constFirst();
+    return QStringLiteral("%1 | c:%2 f:%3 v:%4")
+            .arg(address)
+            .arg(peer.controlPort)
+            .arg(peer.filePort)
+            .arg(peer.voicePort);
 }
 
 void SessionStore::upsert(const Session &session)

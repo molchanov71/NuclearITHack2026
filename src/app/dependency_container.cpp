@@ -31,68 +31,17 @@ void DependencyContainer::initialize(const AppConfig &config)
             .createdAt = QDateTime::currentDateTimeUtc(),
     });
 
-    peerRegistry_.upsert(PeerDescriptor{
-            .peerId = QStringLiteral("peer-demo"),
-            .displayName = QStringLiteral("Demo peer"),
-            .addresses = {QStringLiteral("127.0.0.1")},
-            .lastSeenAt = QDateTime::currentDateTimeUtc(),
-            .status = PeerStatus::Online,
-            .trustLevel = TrustLevel::Trusted,
-    });
-    trustStore_.setTrustLevel(QStringLiteral("peer-demo"), TrustLevel::Trusted);
-    peerRepository_->save(*peerRegistry_.find(QStringLiteral("peer-demo")));
-    sessionStore_.upsert(Session{
-            .sessionId = QStringLiteral("session-demo"),
-            .peerId = QStringLiteral("peer-demo"),
-            .status = SessionStatus::Connected,
-            .connectedAt = QDateTime::currentDateTimeUtc(),
-            .lastActivityAt = QDateTime::currentDateTimeUtc(),
-            .encrypted = true,
-    });
-    messageStore_.append(ChatMessage{
-            .messageId = QStringLiteral("msg-demo"),
-            .peerId = QStringLiteral("peer-demo"),
-            .sessionId = QStringLiteral("session-demo"),
-            .authorId = QStringLiteral("peer-demo"),
-            .text = QStringLiteral("Фундамент runtime уже поднят."),
-            .createdAt = QDateTime::currentDateTimeUtc(),
-            .direction = MessageDirection::Incoming,
-            .deliveryStatus = MessageDeliveryStatus::Delivered,
-    });
-    messageRepository_->save(messageStore_.all().constFirst());
-    transferStore_.upsertManifest(FileManifest{
-            .manifestId = QStringLiteral("manifest-demo"),
-            .fileName = QStringLiteral("readme.txt"),
-            .relativePath = QStringLiteral("demo/readme.txt"),
-            .sha256 = QByteArrayLiteral("demo"),
-            .totalSize = 1024,
-            .chunkSize = 256,
-            .chunkCount = 4,
-    });
-    fileManifestRepository_->save(transferStore_.manifests().constFirst());
-    transferStore_.upsertTransfer(FileTransfer{
-            .transferId = QStringLiteral("transfer-demo"),
-            .peerId = QStringLiteral("peer-demo"),
-            .manifestId = QStringLiteral("manifest-demo"),
-            .status = TransferStatus::Pending,
-            .bytesTransferred = 128,
-            .bytesTotal = 1024,
-            .updatedAt = QDateTime::currentDateTimeUtc(),
-    });
-    transferRepository_->save(transferStore_.transfers().constFirst());
-    metricsStore_.addSnapshot(MetricSnapshot{
-            .peerId = QStringLiteral("peer-demo"),
-            .sessionId = QStringLiteral("session-demo"),
-            .capturedAt = QDateTime::currentDateTimeUtc(),
-            .latencyMs = 12,
-            .jitterMs = 2,
-            .packetLoss = 0.1,
-            .throughputKbps = 512,
-    });
-    metricsRepository_->save(metricsStore_.all().constFirst());
+    for (const PeerDescriptor &peer : peerRepository_->loadAll()) {
+        peerRegistry_.upsert(peer);
+    }
+    peersTableModel_.refreshFromRegistry(peerRegistry_);
 
     appController_ = std::make_unique<AppController>(config_, metricsStore_);
-    peerController_ = std::make_unique<PeerController>(peerRegistry_);
+    peerController_ = std::make_unique<PeerController>(
+            peerRegistry_,
+            peersTableModel_,
+            config_,
+            [this](const PeerDescriptor &peer) { handlePeerUpdated(peer); });
     sessionController_ = std::make_unique<SessionController>(sessionStore_);
     chatController_ = std::make_unique<ChatController>(messageStore_);
     fileTransferController_ = std::make_unique<FileTransferController>(transferStore_);
@@ -103,13 +52,36 @@ void DependencyContainer::initialize(const AppConfig &config)
             .messageId = QStringLiteral("bootstrap-ping"),
             .sessionId = QStringLiteral("session-demo"),
             .sourceNodeId = nodeIdentityStore_.identity().nodeId,
-            .targetNodeId = QStringLiteral("peer-demo"),
+            .targetNodeId = QStringLiteral("discovery"),
             .type = ControlMessageType::Ping,
             .payload = QJsonObject{{QStringLiteral("probe"), QStringLiteral("runtime")}},
     };
     ackTracker_.registerMessage(ping.messageId);
     logger_->info("Protocol bootstrap frame size={} bytes", messageCodec_.encode(ping).size());
     logger_->info("libsodium initialized, Opus runtime={}", opus_get_version_string());
+
+    if (config_.enableDiscovery) {
+        DiscoverySettings discoverySettings{
+                .nodeId = nodeIdentityStore_.identity().nodeId,
+                .displayName = nodeIdentityStore_.identity().displayName,
+                .publicKey = nodeIdentityStore_.identity().publicKey,
+                .capabilities = {QStringLiteral("control"), QStringLiteral("chat"), QStringLiteral("files"), QStringLiteral("voice")},
+                .discoveryPort = config_.discoveryPort,
+                .controlPort = config_.controlPort,
+                .filePort = config_.filePort,
+                .voicePort = config_.voicePort,
+        };
+        discoveryService_.configure(
+                discoverySettings,
+                &identityService_,
+                [this](const PeerDescriptor &peer) { handlePeerUpdated(peer); },
+                [this](const QString &message) {
+                    if (logger_ != nullptr) {
+                        logger_->info("{}", message.toStdString());
+                    }
+                });
+        discoveryService_.seedPeers(peerRegistry_.all());
+    }
 
     if (config_.enableNetwork) {
         if (config_.enableDiscovery && !discoveryService_.start(config_.discoveryPort)) {
@@ -234,6 +206,11 @@ PeerRegistryModel &DependencyContainer::peerRegistry()
     return peerRegistry_;
 }
 
+PeersTableModel &DependencyContainer::peersTableModel()
+{
+    return peersTableModel_;
+}
+
 SessionStore &DependencyContainer::sessionStore()
 {
     return sessionStore_;
@@ -297,4 +274,24 @@ DiagnosticsController &DependencyContainer::diagnosticsController()
 bool DependencyContainer::isInitialized() const
 {
     return initialized_;
+}
+
+void DependencyContainer::refreshDiscoveryState()
+{
+    discoveryService_.refreshPeerStatuses();
+    if (peerController_ != nullptr) {
+        peerController_->refresh();
+    }
+}
+
+void DependencyContainer::handlePeerUpdated(const PeerDescriptor &peer)
+{
+    trustStore_.setTrustLevel(peer.peerId, peer.trustLevel);
+    peerRegistry_.upsert(peer);
+    if (peerRepository_ != nullptr) {
+        peerRepository_->save(peer);
+    }
+    if (peerController_ != nullptr) {
+        peerController_->refresh();
+    }
 }

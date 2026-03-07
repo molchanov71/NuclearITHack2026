@@ -1,8 +1,15 @@
 #include "main_window.hpp"
 
+#include <QHBoxLayout>
+#include <QAbstractItemView>
+#include <QHeaderView>
 #include <QLabel>
 #include <QListWidget>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QTabWidget>
+#include <QTableView>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -13,6 +20,13 @@ MainWindow::MainWindow(DependencyContainer &container, QWidget *parent)
 {
     buildUi();
     container_.logger().info("Main window created");
+
+    refreshTimer_ = new QTimer(this);
+    refreshTimer_->setInterval(1000);
+    connect(refreshTimer_, &QTimer::timeout, this, [this]() {
+        refreshPeersView();
+    });
+    refreshTimer_->start();
 }
 
 void MainWindow::buildUi()
@@ -21,10 +35,7 @@ void MainWindow::buildUi()
     resize(1200, 800);
 
     tabs_ = new QTabWidget(this);
-    tabs_->addTab(createListPage(QStringLiteral("Peers"),
-                                 QStringLiteral("Known peers, discovery status and connection health."),
-                                 container_.peerController().peerLines()),
-                  QStringLiteral("Peers"));
+    tabs_->addTab(createPeersPage(), QStringLiteral("Peers"));
     tabs_->addTab(createListPage(QStringLiteral("Chat"),
                                  QStringLiteral("Direct and group chat history will be shown here."),
                                  container_.chatController().chatLines()),
@@ -47,6 +58,47 @@ void MainWindow::buildUi()
                   QStringLiteral("Diagnostics"));
 
     setCentralWidget(tabs_);
+}
+
+QWidget *MainWindow::createPeersPage()
+{
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+
+    auto *titleLabel = new QLabel(QStringLiteral("Peers"), page);
+    titleLabel->setStyleSheet("font-size: 24px; font-weight: 700;");
+    layout->addWidget(titleLabel);
+
+    auto *descriptionLabel = new QLabel(
+            QStringLiteral("Автоматически найденные LAN-узлы, их capability set, IP/ports и состояние TTL."),
+            page);
+    descriptionLabel->setWordWrap(true);
+    layout->addWidget(descriptionLabel);
+
+    auto *manualLayout = new QHBoxLayout();
+    manualPeerInput_ = new QLineEdit(page);
+    manualPeerInput_->setObjectName(QStringLiteral("manualPeerInput"));
+    manualPeerInput_->setPlaceholderText(QStringLiteral("Добавить peer по IP, например 192.168.1.10"));
+    auto *addButton = new QPushButton(QStringLiteral("Add peer by IP"), page);
+    connect(addButton, &QPushButton::clicked, this, [this]() {
+        container_.peerController().addManualPeer(manualPeerInput_->text());
+        manualPeerInput_->clear();
+        refreshPeersView();
+    });
+    manualLayout->addWidget(manualPeerInput_);
+    manualLayout->addWidget(addButton);
+    layout->addLayout(manualLayout);
+
+    peersTable_ = new QTableView(page);
+    peersTable_->setObjectName(QStringLiteral("peersTable"));
+    peersTable_->setModel(&container_.peerController().tableModel());
+    peersTable_->horizontalHeader()->setStretchLastSection(true);
+    peersTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    peersTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(peersTable_);
+
+    container_.peerController().refresh();
+    return page;
 }
 
 QWidget *MainWindow::createPlaceholderPage(const QString &title, const QString &description) const
@@ -74,9 +126,23 @@ QWidget *MainWindow::createListPage(const QString &title,
     auto *page = createPlaceholderPage(title, description);
     auto *layout = qobject_cast<QVBoxLayout *>(page->layout());
 
-    auto *listWidget = new QListWidget(page);
-    listWidget->addItems(lines);
+    auto *listWidget = createListWidget(lines, page);
     layout->insertWidget(2, listWidget);
 
     return page;
+}
+
+QListWidget *MainWindow::createListWidget(const QStringList &lines, QWidget *parent) const
+{
+    auto *listWidget = new QListWidget(parent);
+    listWidget->addItems(lines);
+    return listWidget;
+}
+
+void MainWindow::refreshPeersView()
+{
+    container_.refreshDiscoveryState();
+    if (peersTable_ != nullptr) {
+        peersTable_->viewport()->update();
+    }
 }

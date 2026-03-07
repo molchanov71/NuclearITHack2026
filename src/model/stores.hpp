@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QAbstractTableModel>
 #include <QHash>
 #include <QString>
 #include <QVector>
@@ -28,6 +29,7 @@ class PeerRegistryModel
 {
 public:
     void upsert(const PeerDescriptor &peer);
+    bool updateStatus(const QString &peerId, PeerStatus status);
     bool remove(const QString &peerId);
     [[nodiscard]] bool contains(const QString &peerId) const;
     [[nodiscard]] const PeerDescriptor *find(const QString &peerId) const;
@@ -36,6 +38,33 @@ public:
 
 private:
     QHash<QString, PeerDescriptor> peers_{};
+};
+
+/**
+ * @brief Табличная модель peers для страницы discovery.
+ */
+class PeersTableModel final : public QAbstractTableModel
+{
+    Q_OBJECT
+
+public:
+    explicit PeersTableModel(QObject *parent = nullptr);
+
+    [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    [[nodiscard]] int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    [[nodiscard]] QVariant data(const QModelIndex &index, int role) const override;
+    [[nodiscard]] QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+
+    /** @brief Обновляет снимок таблицы на основе реестра peers. */
+    void refreshFromRegistry(const PeerRegistryModel &peerRegistry);
+    /** @brief Возвращает peer по строке таблицы. */
+    [[nodiscard]] const PeerDescriptor *peerAt(int row) const;
+
+private:
+    [[nodiscard]] QString formatStatus(PeerStatus status) const;
+    [[nodiscard]] QString formatEndpoints(const PeerDescriptor &peer) const;
+
+    QVector<PeerDescriptor> peers_{};
 };
 
 /**

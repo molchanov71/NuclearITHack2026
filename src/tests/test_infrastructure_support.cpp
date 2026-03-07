@@ -4,6 +4,7 @@
 #include <QTemporaryDir>
 
 #include "../infrastructure/database.hpp"
+#include "../infrastructure/identity_service.hpp"
 #include "../infrastructure/log_service.hpp"
 #include "../infrastructure/network_services.hpp"
 #include "../infrastructure/repositories.hpp"
@@ -59,6 +60,11 @@ void InfrastructureSupportTest::repositoriesPersistAndLoadEntities()
             .peerId = QStringLiteral("peer-1"),
             .displayName = QStringLiteral("Peer One"),
             .addresses = {QStringLiteral("192.168.0.10")},
+            .capabilities = {QStringLiteral("chat"), QStringLiteral("files")},
+            .discoveryPort = 45454,
+            .controlPort = 45455,
+            .filePort = 45456,
+            .voicePort = 45457,
             .lastSeenAt = QDateTime::currentDateTimeUtc(),
             .status = PeerStatus::Online,
             .trustLevel = TrustLevel::Trusted,
@@ -110,7 +116,25 @@ void InfrastructureSupportTest::repositoriesPersistAndLoadEntities()
 
 void InfrastructureSupportTest::networkStubsCanStartAndStop()
 {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    IdentityService identityService;
+    const IdentityMaterial identity = identityService.initialize(dir.path());
     DiscoveryService discovery;
+    discovery.configure(
+            DiscoverySettings{
+                    .nodeId = QStringLiteral("local-node"),
+                    .displayName = QStringLiteral("Local"),
+                    .publicKey = identity.publicKey,
+                    .capabilities = {QStringLiteral("control")},
+                    .discoveryPort = 45454,
+                    .controlPort = 45455,
+                    .filePort = 45456,
+                    .voicePort = 45457,
+            },
+            &identityService,
+            [](const PeerDescriptor &) {},
+            [](const QString &) {});
     const bool discoveryStarted = discovery.start(0);
     QVERIFY(discoveryStarted || !discovery.lastError().isEmpty());
     discovery.stop();

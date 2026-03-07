@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <QStringList>
 
 #include "../model/stores.hpp"
@@ -36,11 +38,20 @@ private:
 class PeerController
 {
 public:
-    explicit PeerController(const PeerRegistryModel &peerRegistry);
+    PeerController(PeerRegistryModel &peerRegistry,
+                   PeersTableModel &tableModel,
+                   const AppConfig &config,
+                   std::function<void(const PeerDescriptor &)> onPeerChanged = {});
     [[nodiscard]] QStringList peerLines() const;
+    [[nodiscard]] PeersTableModel &tableModel() const;
+    void refresh();
+    void addManualPeer(const QString &address);
 
 private:
-    const PeerRegistryModel &peerRegistry_;
+    PeerRegistryModel &peerRegistry_;
+    PeersTableModel &tableModel_;
+    const AppConfig &config_;
+    std::function<void(const PeerDescriptor &)> onPeerChanged_{};
 };
 
 /**

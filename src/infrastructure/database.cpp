@@ -51,7 +51,7 @@ bool Database::initializeSchema()
     static const char *statements[] = {
             "CREATE TABLE IF NOT EXISTS node_identity (node_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, device_name TEXT NOT NULL, public_key BLOB NOT NULL, created_at TEXT NOT NULL)",
             "CREATE TABLE IF NOT EXISTS trusted_peers (peer_id TEXT PRIMARY KEY, trust_level INTEGER NOT NULL, updated_at TEXT NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS peers (peer_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, addresses TEXT NOT NULL, last_seen_at TEXT NOT NULL, status INTEGER NOT NULL, trust_level INTEGER NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS peers (peer_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, addresses TEXT NOT NULL, capabilities TEXT NOT NULL DEFAULT '[]', discovery_port INTEGER NOT NULL DEFAULT 0, control_port INTEGER NOT NULL DEFAULT 0, file_port INTEGER NOT NULL DEFAULT 0, voice_port INTEGER NOT NULL DEFAULT 0, last_seen_at TEXT NOT NULL, status INTEGER NOT NULL, trust_level INTEGER NOT NULL)",
             "CREATE TABLE IF NOT EXISTS sessions (session_id TEXT PRIMARY KEY, peer_id TEXT NOT NULL, status INTEGER NOT NULL, connected_at TEXT NOT NULL, last_activity_at TEXT NOT NULL, encrypted INTEGER NOT NULL)",
             "CREATE TABLE IF NOT EXISTS messages (message_id TEXT PRIMARY KEY, peer_id TEXT NOT NULL, session_id TEXT NOT NULL, author_id TEXT NOT NULL, text TEXT NOT NULL, created_at TEXT NOT NULL, direction INTEGER NOT NULL, delivery_status INTEGER NOT NULL)",
             "CREATE TABLE IF NOT EXISTS file_transfers (transfer_id TEXT PRIMARY KEY, peer_id TEXT NOT NULL, manifest_id TEXT NOT NULL, status INTEGER NOT NULL, bytes_transferred INTEGER NOT NULL, bytes_total INTEGER NOT NULL, updated_at TEXT NOT NULL)",

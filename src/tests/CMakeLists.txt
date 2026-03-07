@@ -55,6 +55,18 @@ target_link_libraries(test_infrastructure_support PRIVATE
 )
 add_test(NAME test_infrastructure_support COMMAND test_infrastructure_support)
 
+add_executable(test_discovery
+        test_discovery.cpp
+)
+target_link_libraries(test_discovery PRIVATE
+        infrastructure
+        model
+        Qt6::Core
+        Qt6::Network
+        Qt6::Test
+)
+add_test(NAME test_discovery COMMAND test_discovery)
+
 add_executable(test_view_smoke
         test_view_smoke.cpp
 )

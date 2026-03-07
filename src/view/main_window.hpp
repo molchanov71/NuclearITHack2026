@@ -5,7 +5,11 @@
 #include <QString>
 
 class DependencyContainer;
+class QLineEdit;
+class QListWidget;
 class QTabWidget;
+class QTableView;
+class QTimer;
 
 /**
  * @brief Главное окно приложения с вкладками-заглушками для основных функций.
@@ -25,6 +29,8 @@ public:
 private:
     /** @brief Собирает интерфейс с вкладками-заглушками. */
     void buildUi();
+    QWidget *createPeersPage();
+    void refreshPeersView();
 
     /**
      * @brief Создаёт простую страницу с заголовком и описанием.
@@ -36,9 +42,16 @@ private:
     QWidget *createListPage(const QString &title,
                             const QString &description,
                             const QStringList &lines) const;
+    QListWidget *createListWidget(const QStringList &lines, QWidget *parent) const;
 
     /** @brief Общие зависимости, используемые окном. */
     DependencyContainer &container_;
     /** @brief Центральный таб-виджет с временными страницами. */
     QTabWidget *tabs_ = nullptr;
+    /** @brief Таблица найденных peers. */
+    QTableView *peersTable_ = nullptr;
+    /** @brief Поле ручного добавления peer по IP. */
+    QLineEdit *manualPeerInput_ = nullptr;
+    /** @brief Таймер периодического обновления discovery UI. */
+    QTimer *refreshTimer_ = nullptr;
 };

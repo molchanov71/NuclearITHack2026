@@ -1,6 +1,8 @@
 #include <QtTest>
 
+#include <QLineEdit>
 #include <QTabWidget>
+#include <QTableView>
 #include <QTemporaryDir>
 
 #include "../app/app_config.hpp"
@@ -41,6 +43,16 @@ void ViewSmokeTest::mainWindowBuildsExpectedTabs()
     QCOMPARE(tabs->tabText(0), QStringLiteral("Peers"));
     QCOMPARE(tabs->tabText(4), QStringLiteral("Diagnostics"));
 
+    auto *peersTable = window.findChild<QTableView *>(QStringLiteral("peersTable"));
+    QVERIFY(peersTable != nullptr);
+    QCOMPARE(peersTable->model()->columnCount(), 5);
+
+    auto *manualPeerInput = window.findChild<QLineEdit *>(QStringLiteral("manualPeerInput"));
+    QVERIFY(manualPeerInput != nullptr);
+    container.peerController().addManualPeer(QStringLiteral("192.168.0.77"));
+    QCOMPARE(peersTable->model()->rowCount(), 1);
+
+    window.close();
     container.shutdown();
 }
 

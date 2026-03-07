@@ -1,6 +1,7 @@
 #include "controllers.hpp"
 
 #include <QDateTime>
+#include <utility>
 
 #include "../app/app_config.hpp"
 
@@ -26,8 +27,11 @@ QStringList AppController::summaryLines() const
     };
 }
 
-PeerController::PeerController(const PeerRegistryModel &peerRegistry)
-    : peerRegistry_(peerRegistry)
+PeerController::PeerController(PeerRegistryModel &peerRegistry,
+                               PeersTableModel &tableModel,
+                               const AppConfig &config,
+                               std::function<void(const PeerDescriptor &)> onPeerChanged)
+    : peerRegistry_(peerRegistry), tableModel_(tableModel), config_(config), onPeerChanged_(std::move(onPeerChanged))
 {
 }
 
@@ -35,8 +39,16 @@ QStringList PeerController::peerLines() const
 {
     QStringList lines;
     for (const PeerDescriptor &peer : peerRegistry_.all()) {
-        lines.append(QStringLiteral("%1 [%2] last seen %3")
-                             .arg(peer.displayName, peer.peerId, formatTimestamp(peer.lastSeenAt)));
+        lines.append(QStringLiteral("%1 [%2] caps=%3 addr=%4 state=%5 seen=%6")
+                             .arg(peer.displayName,
+                                  peer.peerId,
+                                  peer.capabilities.join(QStringLiteral(",")),
+                                  peer.addresses.join(QStringLiteral(",")),
+                                  peer.status == PeerStatus::Online
+                                          ? QStringLiteral("ONLINE")
+                                          : (peer.status == PeerStatus::Stale ? QStringLiteral("STALE")
+                                                                              : QStringLiteral("OFFLINE")),
+                                  formatTimestamp(peer.lastSeenAt)));
     }
 
     if (lines.isEmpty()) {
@@ -44,6 +56,44 @@ QStringList PeerController::peerLines() const
     }
 
     return lines;
+}
+
+PeersTableModel &PeerController::tableModel() const
+{
+    return tableModel_;
+}
+
+void PeerController::refresh()
+{
+    tableModel_.refreshFromRegistry(peerRegistry_);
+}
+
+void PeerController::addManualPeer(const QString &address)
+{
+    const QString trimmedAddress = address.trimmed();
+    if (trimmedAddress.isEmpty()) {
+        return;
+    }
+
+    const QString peerId = QStringLiteral("manual-%1").arg(trimmedAddress);
+    const PeerDescriptor peer{
+            .peerId = peerId,
+            .displayName = QStringLiteral("Manual %1").arg(trimmedAddress),
+            .addresses = {trimmedAddress},
+            .capabilities = {QStringLiteral("manual"), QStringLiteral("control")},
+            .discoveryPort = config_.discoveryPort,
+            .controlPort = config_.controlPort,
+            .filePort = config_.filePort,
+            .voicePort = config_.voicePort,
+            .lastSeenAt = QDateTime::currentDateTimeUtc(),
+            .status = PeerStatus::Stale,
+            .trustLevel = TrustLevel::Unknown,
+    };
+    peerRegistry_.upsert(peer);
+    if (onPeerChanged_) {
+        onPeerChanged_(peer);
+    }
+    refresh();
 }
 
 SessionController::SessionController(const SessionStore &sessionStore)

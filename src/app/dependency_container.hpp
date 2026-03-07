@@ -56,6 +56,7 @@ public:
     [[nodiscard]] const MessageCodec &messageCodec() const;
     [[nodiscard]] NodeIdentityStore &nodeIdentityStore();
     [[nodiscard]] PeerRegistryModel &peerRegistry();
+    [[nodiscard]] PeersTableModel &peersTableModel();
     [[nodiscard]] SessionStore &sessionStore();
     [[nodiscard]] MessageStore &messageStore();
     [[nodiscard]] TransferStore &transferStore();
@@ -74,8 +75,11 @@ public:
      * @return true, если общие сервисы готовы к использованию.
      */
     [[nodiscard]] bool isInitialized() const;
+    void refreshDiscoveryState();
 
 private:
+    void handlePeerUpdated(const PeerDescriptor &peer);
+
     /** @brief Сохранённая конфигурация приложения. */
     AppConfig config_{};
     /** @brief Подготовленные каталоги runtime. */
@@ -116,6 +120,8 @@ private:
     NodeIdentityStore nodeIdentityStore_{};
     /** @brief Реестр известных peers. */
     PeerRegistryModel peerRegistry_{};
+    /** @brief Табличная модель peers для страницы discovery. */
+    PeersTableModel peersTableModel_{};
     /** @brief Хранилище сессий. */
     SessionStore sessionStore_{};
     /** @brief Хранилище сообщений. */
