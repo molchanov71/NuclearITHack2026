@@ -12,6 +12,7 @@ class RuntimeSmokeTest final : public QObject
 
 private slots:
     void runtimeCreatesDataAndOpensDatabase();
+    void peersPersistAcrossRuntimeRestart();
 };
 
 void RuntimeSmokeTest::runtimeCreatesDataAndOpensDatabase()
@@ -42,6 +43,38 @@ void RuntimeSmokeTest::runtimeCreatesDataAndOpensDatabase()
     QCOMPARE(container.metricsRepository().loadAll().size(), 0);
 
     container.shutdown();
+}
+
+void RuntimeSmokeTest::peersPersistAcrossRuntimeRestart()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AppConfig config = AppConfig::loadDefault();
+    config.dataDir = dir.path();
+    config.logDir = dir.path() + QStringLiteral("/logs");
+    config.securityDir = dir.path() + QStringLiteral("/security");
+    config.transfersTmpDir = dir.path() + QStringLiteral("/transfers/tmp");
+    config.dbPath = dir.path() + QStringLiteral("/app.db");
+    config.enableNetwork = false;
+
+    {
+        DependencyContainer container;
+        container.initialize(config);
+        container.peerController().addManualPeer(QStringLiteral("192.168.5.10"));
+        QCOMPARE(container.peerRepository().loadAll().size(), 1);
+        container.shutdown();
+    }
+
+    {
+        DependencyContainer container;
+        container.initialize(config);
+        QCOMPARE(container.peerRepository().loadAll().size(), 1);
+        QCOMPARE(container.peerRegistry().size(), 1);
+        QVERIFY(container.peerRegistry().contains(QStringLiteral("manual-192.168.5.10")));
+        QCOMPARE(container.peersTableModel().rowCount(), 1);
+        container.shutdown();
+    }
 }
 
 QTEST_APPLESS_MAIN(RuntimeSmokeTest)

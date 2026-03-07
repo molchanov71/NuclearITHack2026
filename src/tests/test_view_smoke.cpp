@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include <QLineEdit>
+#include <QPushButton>
 #include <QTabWidget>
 #include <QTableView>
 #include <QTemporaryDir>
@@ -49,7 +50,10 @@ void ViewSmokeTest::mainWindowBuildsExpectedTabs()
 
     auto *manualPeerInput = window.findChild<QLineEdit *>(QStringLiteral("manualPeerInput"));
     QVERIFY(manualPeerInput != nullptr);
-    container.peerController().addManualPeer(QStringLiteral("192.168.0.77"));
+    auto *addPeerButton = window.findChild<QPushButton *>(QStringLiteral("addPeerButton"));
+    QVERIFY(addPeerButton != nullptr);
+    manualPeerInput->setText(QStringLiteral("192.168.0.77"));
+    QTest::mouseClick(addPeerButton, Qt::LeftButton);
     QCOMPARE(peersTable->model()->rowCount(), 1);
 
     window.close();

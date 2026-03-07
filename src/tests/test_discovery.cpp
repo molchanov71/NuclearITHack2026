@@ -17,6 +17,7 @@ private slots:
     void validAnnounceUpdatesPeerRegistry();
     void invalidSignatureIsRejected();
     void byeMarksPeerOffline();
+    void selfAndExpiredPacketsAreRejected();
     void ttlMovesPeerToStaleAndOffline();
 };
 
@@ -177,6 +178,56 @@ void DiscoveryTest::byeMarksPeerOffline()
     QCOMPARE(peer->status, PeerStatus::Offline);
 }
 
+void DiscoveryTest::selfAndExpiredPacketsAreRejected()
+{
+    QTemporaryDir localDir;
+    QVERIFY(localDir.isValid());
+
+    IdentityService localIdentityService;
+    const IdentityMaterial localIdentity = localIdentityService.initialize(localDir.path());
+
+    int callbackCount = 0;
+    DiscoveryService discovery;
+    discovery.configure(
+            DiscoverySettings{
+                    .nodeId = QStringLiteral("local-node"),
+                    .displayName = QStringLiteral("Local"),
+                    .publicKey = localIdentity.publicKey,
+                    .capabilities = {QStringLiteral("control")},
+                    .discoveryPort = 45454,
+                    .controlPort = 45455,
+                    .filePort = 45456,
+                    .voicePort = 45457,
+                    .offlinePeerMs = 5000,
+            },
+            &localIdentityService,
+            [&callbackCount](const PeerDescriptor &) { ++callbackCount; },
+            [](const QString &) {});
+
+    DiscoveryService localEmitter;
+    localEmitter.configure(
+            DiscoverySettings{
+                    .nodeId = QStringLiteral("local-node"),
+                    .displayName = QStringLiteral("Local"),
+                    .publicKey = localIdentity.publicKey,
+                    .capabilities = {QStringLiteral("control")},
+                    .discoveryPort = 45454,
+                    .controlPort = 45455,
+                    .filePort = 45456,
+                    .voicePort = 45457,
+                    .offlinePeerMs = 5000,
+            },
+            &localIdentityService,
+            [](const PeerDescriptor &) {},
+            [](const QString &) {});
+
+    QVERIFY(!discovery.handleDatagram(localEmitter.buildPacket(DiscoveryPacketType::Announce), QHostAddress::LocalHost));
+    QVERIFY(!discovery.handleDatagram(
+            localEmitter.buildPacket(DiscoveryPacketType::Announce, QDateTime::currentDateTimeUtc().addSecs(-60)),
+            QHostAddress(QStringLiteral("10.0.0.2"))));
+    QCOMPARE(callbackCount, 0);
+}
+
 void DiscoveryTest::ttlMovesPeerToStaleAndOffline()
 {
     QTemporaryDir localDir;
@@ -223,6 +274,25 @@ void DiscoveryTest::ttlMovesPeerToStaleAndOffline()
     const PeerDescriptor *peer = peerRegistry.find(QStringLiteral("peer-old"));
     QVERIFY(peer != nullptr);
     QCOMPARE(peer->status, PeerStatus::Offline);
+
+    peerRegistry.upsert(PeerDescriptor{
+            .peerId = QStringLiteral("peer-stale"),
+            .displayName = QStringLiteral("Stale Peer"),
+            .addresses = {QStringLiteral("10.0.0.2")},
+            .capabilities = {QStringLiteral("chat")},
+            .discoveryPort = 45454,
+            .controlPort = 45455,
+            .filePort = 45456,
+            .voicePort = 45457,
+            .lastSeenAt = QDateTime::currentDateTimeUtc().addMSecs(-2000),
+            .status = PeerStatus::Online,
+            .trustLevel = TrustLevel::Unknown,
+    });
+    discovery.seedPeers(peerRegistry.all());
+    discovery.refreshPeerStatuses();
+    peer = peerRegistry.find(QStringLiteral("peer-stale"));
+    QVERIFY(peer != nullptr);
+    QCOMPARE(peer->status, PeerStatus::Stale);
 }
 
 QTEST_APPLESS_MAIN(DiscoveryTest)

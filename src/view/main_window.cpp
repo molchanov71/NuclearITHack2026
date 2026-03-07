@@ -80,6 +80,7 @@ QWidget *MainWindow::createPeersPage()
     manualPeerInput_->setObjectName(QStringLiteral("manualPeerInput"));
     manualPeerInput_->setPlaceholderText(QStringLiteral("Добавить peer по IP, например 192.168.1.10"));
     auto *addButton = new QPushButton(QStringLiteral("Add peer by IP"), page);
+    addButton->setObjectName(QStringLiteral("addPeerButton"));
     connect(addButton, &QPushButton::clicked, this, [this]() {
         container_.peerController().addManualPeer(manualPeerInput_->text());
         manualPeerInput_->clear();

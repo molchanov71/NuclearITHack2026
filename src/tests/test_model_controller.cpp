@@ -11,6 +11,7 @@ class ModelControllerTest final : public QObject
 private slots:
     void storesSupportCrudOperations();
     void controllersRenderExpectedLines();
+    void peersTableModelRendersColumnsAndStatuses();
 };
 
 void ModelControllerTest::storesSupportCrudOperations()
@@ -211,6 +212,41 @@ void ModelControllerTest::controllersRenderExpectedLines()
 
     peerController.addManualPeer(QStringLiteral("192.168.1.42"));
     QVERIFY(peerRegistry.contains(QStringLiteral("manual-192.168.1.42")));
+}
+
+void ModelControllerTest::peersTableModelRendersColumnsAndStatuses()
+{
+    PeerRegistryModel peerRegistry;
+    peerRegistry.upsert(PeerDescriptor{
+            .peerId = QStringLiteral("peer-a"),
+            .displayName = QStringLiteral("Alpha"),
+            .addresses = {QStringLiteral("10.0.0.1")},
+            .capabilities = {QStringLiteral("chat"), QStringLiteral("control")},
+            .discoveryPort = 45454,
+            .controlPort = 45455,
+            .filePort = 45456,
+            .voicePort = 45457,
+            .lastSeenAt = QDateTime::currentDateTimeUtc(),
+            .status = PeerStatus::Stale,
+            .trustLevel = TrustLevel::Trusted,
+    });
+
+    PeersTableModel tableModel;
+    tableModel.refreshFromRegistry(peerRegistry);
+
+    QCOMPARE(tableModel.rowCount(), 1);
+    QCOMPARE(tableModel.columnCount(), 5);
+    QCOMPARE(tableModel.headerData(0, Qt::Horizontal, Qt::DisplayRole).toString(), QStringLiteral("Имя"));
+    QCOMPARE(tableModel.data(tableModel.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("Alpha"));
+    QVERIFY(tableModel.data(tableModel.index(0, 2), Qt::DisplayRole).toString().contains(QStringLiteral("chat")));
+    QVERIFY(tableModel.data(tableModel.index(0, 3), Qt::DisplayRole).toString().contains(QStringLiteral("10.0.0.1")));
+    QCOMPARE(tableModel.data(tableModel.index(0, 4), Qt::DisplayRole).toString(), QStringLiteral("STALE"));
+
+    QVERIFY(peerRegistry.updateStatus(QStringLiteral("peer-a"), PeerStatus::Offline));
+    tableModel.refreshFromRegistry(peerRegistry);
+    QCOMPARE(tableModel.data(tableModel.index(0, 4), Qt::DisplayRole).toString(), QStringLiteral("OFFLINE"));
+    QVERIFY(tableModel.peerAt(0) != nullptr);
+    QVERIFY(tableModel.peerAt(1) == nullptr);
 }
 
 QTEST_APPLESS_MAIN(ModelControllerTest)
