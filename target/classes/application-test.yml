@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:hex-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+server:
+  port: 0
+
+node:
+  display-name: Test Node
+
+hex:
+  discovery:
+    enabled: false
+    port: 49091
+    interval-ms: 3000
+    ttl-ms: 2000
+  signal:
+    base-path: /api/signal
+  storage:
+    root: ./target/test-data
+  files:
+    temp-dir: ./target/test-data/files/tmp
+    final-dir: ./target/test-data/files/final
+  metrics:
+    enabled: true

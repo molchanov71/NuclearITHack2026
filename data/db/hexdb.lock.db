@@ -1,0 +1,6 @@
+#FileLock
+#Sat Mar 07 06:49:27 MSK 2026
+hostName=stepanPC.localdomain
+id=19cc66a159e44f1ec8df5ffe654afb53dff99c13b05
+method=file
+server=127.0.1.1\:44667

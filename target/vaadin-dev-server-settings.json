@@ -1,0 +1,17 @@
+{
+  "frontendFolder": "/home/stepan/programming/hack/NuclearITHack2026/src/main/frontend",
+  "themeFolder": "themes",
+  "themeResourceFolder": "/home/stepan/programming/hack/NuclearITHack2026/src/main/frontend/generated/jar-resources",
+  "staticOutput": "/home/stepan/programming/hack/NuclearITHack2026/target/classes/META-INF/VAADIN/webapp/VAADIN/static",
+  "generatedFolder": "generated",
+  "statsOutput": "/home/stepan/programming/hack/NuclearITHack2026/target/classes/META-INF/VAADIN/config",
+  "frontendBundleOutput": "/home/stepan/programming/hack/NuclearITHack2026/target/classes/META-INF/VAADIN/webapp",
+  "devBundleOutput": "/home/stepan/programming/hack/NuclearITHack2026/target/dev-bundle/webapp",
+  "devBundleStatsOutput": "/home/stepan/programming/hack/NuclearITHack2026/target/dev-bundle/config",
+  "jarResourcesFolder": "/home/stepan/programming/hack/NuclearITHack2026/src/main/frontend/generated/jar-resources",
+  "themeName": "",
+  "clientServiceWorkerSource": "/home/stepan/programming/hack/NuclearITHack2026/target/sw.ts",
+  "pwaEnabled": false,
+  "offlineEnabled": false,
+  "offlinePath": "'offline.html'"
+}

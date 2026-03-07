@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: hex-team-app
+  datasource:
+    url: jdbc:h2:file:./data/db/hexdb;AUTO_SERVER=TRUE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+
+server:
+  port: 8080
+
+node:
+  display-name: ${HEX_NODE_DISPLAY_NAME:${HOSTNAME:Hex Node}}
+
+hex:
+  discovery:
+    enabled: true
+    port: 49090
+    interval-ms: 3000
+    ttl-ms: 10000
+  signal:
+    base-path: /api/signal
+  storage:
+    root: ./data
+  files:
+    temp-dir: ./data/files/tmp
+    final-dir: ./data/files/final
+  metrics:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

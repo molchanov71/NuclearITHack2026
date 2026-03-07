@@ -1,0 +1,4 @@
+com/hexteam/app/discovery/PeerRegistryTest.class
+com/hexteam/app/signaling/SignalControllerIntegrationTest.class
+com/hexteam/app/discovery/PeerRegistryTest$MutableClock.class
+com/hexteam/app/security/NodeIdentityServiceTest.class

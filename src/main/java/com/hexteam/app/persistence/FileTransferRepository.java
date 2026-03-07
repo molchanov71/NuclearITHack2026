@@ -1,0 +1,10 @@
+package com.hexteam.app.persistence;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface FileTransferRepository extends JpaRepository<FileTransferEntity, String> {
+
+    List<FileTransferEntity> findTop50ByOrderByCreatedAtDesc();
+}
