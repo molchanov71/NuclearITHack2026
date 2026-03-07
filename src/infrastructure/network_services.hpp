@@ -40,7 +40,8 @@ struct DiscoverySettings
 enum class DiscoveryPacketType
 {
     Announce,
-    Bye
+    Bye,
+    Probe
 };
 
 /**
@@ -69,6 +70,8 @@ public:
 
     /** @brief Принудительно рассылает announce текущего узла. */
     void announceNow();
+    /** @brief Отправляет unicast probe на указанный адрес для ручного добавления peer. */
+    void probeAddress(const QHostAddress &address);
     /** @brief Обновляет статусы peers по TTL. */
     void refreshPeerStatuses();
     /** @brief Обрабатывает discovery-пакет без реального сокета, удобно для тестов. */
@@ -83,6 +86,8 @@ private:
     [[nodiscard]] QJsonObject packetTemplate(DiscoveryPacketType type, const QDateTime &timestamp) const;
     [[nodiscard]] PeerDescriptor descriptorFromPacket(const QJsonObject &packet, const QHostAddress &senderAddress) const;
     [[nodiscard]] QString senderToString(const QHostAddress &senderAddress) const;
+    void sendPacketToDiscoveryTargets(const QByteArray &packet);
+    void sendPacketToAddress(const QByteArray &packet, const QHostAddress &address, quint16 port);
 
     QUdpSocket socket_{};
     QTimer announceTimer_{};

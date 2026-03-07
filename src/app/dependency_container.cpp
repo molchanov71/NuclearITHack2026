@@ -41,7 +41,8 @@ void DependencyContainer::initialize(const AppConfig &config)
             peerRegistry_,
             peersTableModel_,
             config_,
-            [this](const PeerDescriptor &peer) { handlePeerUpdated(peer); });
+            [this](const PeerDescriptor &peer) { handlePeerUpdated(peer); },
+            [this](const QString &address) { probePeerAddress(address); });
     sessionController_ = std::make_unique<SessionController>(sessionStore_);
     chatController_ = std::make_unique<ChatController>(messageStore_);
     fileTransferController_ = std::make_unique<FileTransferController>(transferStore_);
@@ -293,5 +294,21 @@ void DependencyContainer::handlePeerUpdated(const PeerDescriptor &peer)
     }
     if (peerController_ != nullptr) {
         peerController_->refresh();
+    }
+}
+
+void DependencyContainer::probePeerAddress(const QString &address)
+{
+    const QHostAddress hostAddress(address);
+    if (hostAddress.isNull()) {
+        if (logger_ != nullptr) {
+            logger_->warn("Manual peer probe skipped: invalid address {}", address.toStdString());
+        }
+        return;
+    }
+
+    discoveryService_.probeAddress(hostAddress);
+    if (logger_ != nullptr) {
+        logger_->info("Discovery probe sent to {}", address.toStdString());
     }
 }

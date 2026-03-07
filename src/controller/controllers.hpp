@@ -41,7 +41,8 @@ public:
     PeerController(PeerRegistryModel &peerRegistry,
                    PeersTableModel &tableModel,
                    const AppConfig &config,
-                   std::function<void(const PeerDescriptor &)> onPeerChanged = {});
+                   std::function<void(const PeerDescriptor &)> onPeerChanged = {},
+                   std::function<void(const QString &)> onPeerProbeRequested = {});
     [[nodiscard]] QStringList peerLines() const;
     [[nodiscard]] PeersTableModel &tableModel() const;
     void refresh();
@@ -52,6 +53,7 @@ private:
     PeersTableModel &tableModel_;
     const AppConfig &config_;
     std::function<void(const PeerDescriptor &)> onPeerChanged_{};
+    std::function<void(const QString &)> onPeerProbeRequested_{};
 };
 
 /**

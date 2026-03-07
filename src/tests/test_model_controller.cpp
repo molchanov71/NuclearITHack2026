@@ -193,7 +193,12 @@ void ModelControllerTest::controllersRenderExpectedLines()
     trustStore.setTrustLevel(QStringLiteral("peer-1"), TrustLevel::Trusted);
 
     AppController appController(config, metricsStore);
-    PeerController peerController(peerRegistry, peersTableModel, config);
+    int probeRequests = 0;
+    PeerController peerController(peerRegistry,
+                                  peersTableModel,
+                                  config,
+                                  {},
+                                  [&probeRequests](const QString &) { ++probeRequests; });
     SessionController sessionController(sessionStore);
     ChatController chatController(messageStore);
     FileTransferController fileTransferController(transferStore);
@@ -212,6 +217,7 @@ void ModelControllerTest::controllersRenderExpectedLines()
 
     peerController.addManualPeer(QStringLiteral("192.168.1.42"));
     QVERIFY(peerRegistry.contains(QStringLiteral("manual-192.168.1.42")));
+    QCOMPARE(probeRequests, 1);
 }
 
 void ModelControllerTest::peersTableModelRendersColumnsAndStatuses()

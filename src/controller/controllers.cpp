@@ -30,8 +30,13 @@ QStringList AppController::summaryLines() const
 PeerController::PeerController(PeerRegistryModel &peerRegistry,
                                PeersTableModel &tableModel,
                                const AppConfig &config,
-                               std::function<void(const PeerDescriptor &)> onPeerChanged)
-    : peerRegistry_(peerRegistry), tableModel_(tableModel), config_(config), onPeerChanged_(std::move(onPeerChanged))
+                               std::function<void(const PeerDescriptor &)> onPeerChanged,
+                               std::function<void(const QString &)> onPeerProbeRequested)
+    : peerRegistry_(peerRegistry),
+      tableModel_(tableModel),
+      config_(config),
+      onPeerChanged_(std::move(onPeerChanged)),
+      onPeerProbeRequested_(std::move(onPeerProbeRequested))
 {
 }
 
@@ -92,6 +97,9 @@ void PeerController::addManualPeer(const QString &address)
     peerRegistry_.upsert(peer);
     if (onPeerChanged_) {
         onPeerChanged_(peer);
+    }
+    if (onPeerProbeRequested_) {
+        onPeerProbeRequested_(trimmedAddress);
     }
     refresh();
 }

@@ -18,6 +18,7 @@ private slots:
     void invalidSignatureIsRejected();
     void byeMarksPeerOffline();
     void selfAndExpiredPacketsAreRejected();
+    void probePacketIsAccepted();
     void ttlMovesPeerToStaleAndOffline();
 };
 
@@ -226,6 +227,57 @@ void DiscoveryTest::selfAndExpiredPacketsAreRejected()
             localEmitter.buildPacket(DiscoveryPacketType::Announce, QDateTime::currentDateTimeUtc().addSecs(-60)),
             QHostAddress(QStringLiteral("10.0.0.2"))));
     QCOMPARE(callbackCount, 0);
+}
+
+void DiscoveryTest::probePacketIsAccepted()
+{
+    QTemporaryDir localDir;
+    QTemporaryDir remoteDir;
+    QVERIFY(localDir.isValid());
+    QVERIFY(remoteDir.isValid());
+
+    IdentityService localIdentityService;
+    const IdentityMaterial localIdentity = localIdentityService.initialize(localDir.path());
+    IdentityService remoteIdentityService;
+    const IdentityMaterial remoteIdentity = remoteIdentityService.initialize(remoteDir.path());
+
+    PeerRegistryModel peerRegistry;
+    DiscoveryService discovery;
+    discovery.configure(
+            DiscoverySettings{
+                    .nodeId = QStringLiteral("local-node"),
+                    .displayName = QStringLiteral("Local"),
+                    .publicKey = localIdentity.publicKey,
+                    .capabilities = {QStringLiteral("control")},
+                    .discoveryPort = 45454,
+                    .controlPort = 45455,
+                    .filePort = 45456,
+                    .voicePort = 45457,
+            },
+            &localIdentityService,
+            [&peerRegistry](const PeerDescriptor &peer) { peerRegistry.upsert(peer); },
+            [](const QString &) {});
+
+    DiscoveryService remoteEmitter;
+    remoteEmitter.configure(
+            DiscoverySettings{
+                    .nodeId = QStringLiteral("remote-node"),
+                    .displayName = QStringLiteral("Remote"),
+                    .publicKey = remoteIdentity.publicKey,
+                    .capabilities = {QStringLiteral("chat")},
+                    .discoveryPort = 45454,
+                    .controlPort = 50001,
+                    .filePort = 50002,
+                    .voicePort = 50003,
+            },
+            &remoteIdentityService,
+            [](const PeerDescriptor &) {},
+            [](const QString &) {});
+
+    QVERIFY(discovery.handleDatagram(remoteEmitter.buildPacket(DiscoveryPacketType::Probe), QHostAddress(QStringLiteral("192.168.1.30"))));
+    const PeerDescriptor *peer = peerRegistry.find(QStringLiteral("remote-node"));
+    QVERIFY(peer != nullptr);
+    QCOMPARE(peer->status, PeerStatus::Online);
 }
 
 void DiscoveryTest::ttlMovesPeerToStaleAndOffline()

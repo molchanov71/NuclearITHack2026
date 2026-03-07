@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkDatagram>
+#include <QNetworkInterface>
 #include <QtGlobal>
 
 #include "identity_service.hpp"
@@ -17,6 +18,8 @@ QString packetTypeToString(DiscoveryPacketType type)
         return QStringLiteral("ANNOUNCE");
     case DiscoveryPacketType::Bye:
         return QStringLiteral("BYE");
+    case DiscoveryPacketType::Probe:
+        return QStringLiteral("PROBE");
     }
 
     return QStringLiteral("ANNOUNCE");
@@ -26,6 +29,9 @@ DiscoveryPacketType stringToPacketType(const QString &value)
 {
     if (value == QStringLiteral("BYE")) {
         return DiscoveryPacketType::Bye;
+    }
+    if (value == QStringLiteral("PROBE")) {
+        return DiscoveryPacketType::Probe;
     }
 
     return DiscoveryPacketType::Announce;
@@ -84,7 +90,20 @@ bool DiscoveryService::start(quint16 port)
         return false;
     }
 
-    socket_.joinMulticastGroup(QHostAddress(QStringLiteral("239.255.43.21")));
+    socket_.setSocketOption(QAbstractSocket::MulticastTtlOption, 1);
+    socket_.setSocketOption(QAbstractSocket::MulticastLoopbackOption, 1);
+    for (const QNetworkInterface &interface : QNetworkInterface::allInterfaces()) {
+        const auto flags = interface.flags();
+        const bool usable = flags.testFlag(QNetworkInterface::IsUp) &&
+                            flags.testFlag(QNetworkInterface::IsRunning) &&
+                            !flags.testFlag(QNetworkInterface::IsLoopBack) &&
+                            flags.testFlag(QNetworkInterface::CanMulticast);
+        if (!usable) {
+            continue;
+        }
+
+        socket_.joinMulticastGroup(QHostAddress(QStringLiteral("239.255.43.21")), interface);
+    }
     announceTimer_.start(settings_.announceIntervalMs);
     ttlTimer_.start(1000);
     running_ = true;
@@ -97,8 +116,7 @@ void DiscoveryService::stop()
 {
     if (running_) {
         const QByteArray byePacket = buildPacket(DiscoveryPacketType::Bye);
-        socket_.writeDatagram(byePacket, QHostAddress::Broadcast, settings_.discoveryPort);
-        socket_.writeDatagram(byePacket, QHostAddress(QStringLiteral("239.255.43.21")), settings_.discoveryPort);
+        sendPacketToDiscoveryTargets(byePacket);
     }
 
     announceTimer_.stop();
@@ -119,8 +137,17 @@ void DiscoveryService::announceNow()
     }
 
     const QByteArray announcePacket = buildPacket(DiscoveryPacketType::Announce);
-    socket_.writeDatagram(announcePacket, QHostAddress::Broadcast, settings_.discoveryPort);
-    socket_.writeDatagram(announcePacket, QHostAddress(QStringLiteral("239.255.43.21")), settings_.discoveryPort);
+    sendPacketToDiscoveryTargets(announcePacket);
+}
+
+void DiscoveryService::probeAddress(const QHostAddress &address)
+{
+    if (address.isNull()) {
+        return;
+    }
+
+    const QByteArray probePacket = buildPacket(DiscoveryPacketType::Probe);
+    sendPacketToAddress(probePacket, address, settings_.discoveryPort);
 }
 
 void DiscoveryService::refreshPeerStatuses()
@@ -173,6 +200,7 @@ QByteArray DiscoveryService::signablePayload(const QJsonObject &packet) const
 
 bool DiscoveryService::processPacket(const QJsonObject &packet, const QHostAddress &senderAddress)
 {
+    const DiscoveryPacketType packetType = stringToPacketType(packet.value(QStringLiteral("type")).toString());
     const QString nodeId = packet.value(QStringLiteral("nodeId")).toString();
     if (nodeId.isEmpty() || nodeId == settings_.nodeId) {
         return false;
@@ -199,7 +227,7 @@ bool DiscoveryService::processPacket(const QJsonObject &packet, const QHostAddre
     }
 
     PeerDescriptor peer = descriptorFromPacket(packet, senderAddress);
-    if (stringToPacketType(packet.value(QStringLiteral("type")).toString()) == DiscoveryPacketType::Bye) {
+    if (packetType == DiscoveryPacketType::Bye) {
         peer.status = PeerStatus::Offline;
     }
 
@@ -209,6 +237,10 @@ bool DiscoveryService::processPacket(const QJsonObject &packet, const QHostAddre
     }
     if (onLogMessage_) {
         onLogMessage_(QStringLiteral("Discovery packet accepted from %1").arg(peer.peerId));
+    }
+
+    if (packetType == DiscoveryPacketType::Probe) {
+        sendPacketToAddress(buildPacket(DiscoveryPacketType::Announce), senderAddress, peer.discoveryPort);
     }
 
     return true;
@@ -264,6 +296,47 @@ QString DiscoveryService::senderToString(const QHostAddress &senderAddress) cons
     }
 
     return senderAddress.toString();
+}
+
+void DiscoveryService::sendPacketToDiscoveryTargets(const QByteArray &packet)
+{
+    const QHostAddress multicastGroup(QStringLiteral("239.255.43.21"));
+    bool sentDirectedBroadcast = false;
+
+    for (const QNetworkInterface &interface : QNetworkInterface::allInterfaces()) {
+        const auto flags = interface.flags();
+        const bool usable = flags.testFlag(QNetworkInterface::IsUp) &&
+                            flags.testFlag(QNetworkInterface::IsRunning) &&
+                            !flags.testFlag(QNetworkInterface::IsLoopBack);
+        if (!usable) {
+            continue;
+        }
+
+        for (const QNetworkAddressEntry &entry : interface.addressEntries()) {
+            if (entry.ip().protocol() != QAbstractSocket::IPv4Protocol) {
+                continue;
+            }
+
+            if (!entry.broadcast().isNull()) {
+                sendPacketToAddress(packet, entry.broadcast(), settings_.discoveryPort);
+                sentDirectedBroadcast = true;
+            }
+        }
+
+        if (flags.testFlag(QNetworkInterface::CanMulticast)) {
+            socket_.setMulticastInterface(interface);
+            sendPacketToAddress(packet, multicastGroup, settings_.discoveryPort);
+        }
+    }
+
+    if (!sentDirectedBroadcast) {
+        sendPacketToAddress(packet, QHostAddress::Broadcast, settings_.discoveryPort);
+    }
+}
+
+void DiscoveryService::sendPacketToAddress(const QByteArray &packet, const QHostAddress &address, quint16 port)
+{
+    socket_.writeDatagram(packet, address, port);
 }
 
 bool ControlServer::start(quint16 port)

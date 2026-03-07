@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include <QHostAddress>
+
 #include <spdlog/logger.h>
 
 #include "app_config.hpp"
@@ -79,6 +81,7 @@ public:
 
 private:
     void handlePeerUpdated(const PeerDescriptor &peer);
+    void probePeerAddress(const QString &address);
 
     /** @brief Сохранённая конфигурация приложения. */
     AppConfig config_{};
