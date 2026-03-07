@@ -19,6 +19,7 @@ hex:
     ttl-ms: 2000
     probe-enabled: false
     probe-timeout-ms: 50
+    probe-ports: [8080]
   signal:
     base-path: /api/signal
   storage:

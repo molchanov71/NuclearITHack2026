@@ -143,7 +143,8 @@ public class DiscoveryService {
                 .build();
         networkAddressResolver.probeAddresses()
                 .parallelStream()
-                .forEach(address -> probeSingleAddress(client, address));
+                .forEach(address -> properties.getDiscovery().getProbePorts()
+                        .forEach(port -> probeSingleAddress(client, address, port)));
     }
 
     @PreDestroy
@@ -208,13 +209,13 @@ public class DiscoveryService {
         );
     }
 
-    private void probeSingleAddress(HttpClient client, InetAddress address) {
+    private void probeSingleAddress(HttpClient client, InetAddress address, int port) {
         String localIp = networkAddressResolver.resolvePrimaryAddress().getHostAddress();
-        if (address.getHostAddress().equals(localIp)) {
+        if (address.getHostAddress().equals(localIp) && port == serverPort) {
             return;
         }
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://" + address.getHostAddress() + ":" + serverPort + "/api/discovery/probe"))
+                .uri(URI.create("http://" + address.getHostAddress() + ":" + port + "/api/discovery/probe"))
                 .timeout(Duration.ofMillis(properties.getDiscovery().getProbeTimeoutMs()))
                 .GET()
                 .build();
@@ -226,7 +227,7 @@ public class DiscoveryService {
             DiscoveryAnnounce announce = objectMapper.readValue(response.body(), DiscoveryAnnounce.class);
             if (!announce.nodeId().equals(identityService.currentIdentity().nodeId())) {
                 peerRegistry.upsert(announce);
-                diagnosticsService.record("discovery", "HTTP probe обнаружил peer " + announce.displayName() + " по " + address.getHostAddress());
+                diagnosticsService.record("discovery", "HTTP probe обнаружил peer " + announce.displayName() + " по " + address.getHostAddress() + ":" + port);
             }
         } catch (Exception ignored) {
             // Для probe-сканирования отсутствие ответа — нормальный сценарий.

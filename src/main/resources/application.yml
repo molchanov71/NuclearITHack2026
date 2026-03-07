@@ -25,6 +25,9 @@ hex:
     port: 49090
     interval-ms: 3000
     ttl-ms: 10000
+    probe-enabled: true
+    probe-timeout-ms: 250
+    probe-ports: [8080, 8081, 8082, 8083, 8084, 8085]
   signal:
     base-path: /api/signal
   storage:

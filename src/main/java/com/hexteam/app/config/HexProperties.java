@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Validated
 @ConfigurationProperties(prefix = "hex")
 public class HexProperties {
@@ -61,6 +64,8 @@ public class HexProperties {
         @Min(50)
         private int probeTimeoutMs = 250;
 
+        private List<Integer> probePorts = new ArrayList<>(List.of(8080, 8081, 8082, 8083, 8084, 8085));
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -107,6 +112,14 @@ public class HexProperties {
 
         public void setProbeTimeoutMs(int probeTimeoutMs) {
             this.probeTimeoutMs = probeTimeoutMs;
+        }
+
+        public List<Integer> getProbePorts() {
+            return probePorts;
+        }
+
+        public void setProbePorts(List<Integer> probePorts) {
+            this.probePorts = probePorts;
         }
     }
 
