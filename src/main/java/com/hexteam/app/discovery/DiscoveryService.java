@@ -5,6 +5,7 @@ import com.hexteam.app.metrics.DiagnosticsService;
 import com.hexteam.app.security.NodeIdentity;
 import com.hexteam.app.security.NodeIdentityService;
 import jakarta.annotation.PreDestroy;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -68,6 +69,24 @@ public class DiscoveryService {
         this.clock = clock;
         this.serverPort = serverPort;
         startListener();
+    }
+
+    @PostConstruct
+    public void logNetworkConfiguration() {
+        InetAddress primaryAddress = networkAddressResolver.resolvePrimaryAddress();
+        List<InetAddress> broadcasts = networkAddressResolver.broadcastAddresses();
+        String broadcastSummary = broadcasts.stream()
+                .map(InetAddress::getHostAddress)
+                .distinct()
+                .sorted()
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("<none>");
+        log.info("Discovery настроен: primaryAddress={}, discoveryPort={}, broadcasts={}",
+                primaryAddress.getHostAddress(),
+                properties.getDiscovery().getPort(),
+                broadcastSummary);
+        diagnosticsService.record("discovery", "Primary IP: " + primaryAddress.getHostAddress());
+        diagnosticsService.record("discovery", "Broadcast targets: " + broadcastSummary);
     }
 
     @Scheduled(fixedDelayString = "${hex.discovery.interval-ms:3000}")

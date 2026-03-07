@@ -49,6 +49,36 @@ public class NetworkAddressResolver {
         return InetAddress.getLoopbackAddress();
     }
 
+    public List<NetworkInterfaceSnapshot> interfaceSnapshots() {
+        List<NetworkInterfaceSnapshot> snapshots = new ArrayList<>();
+        for (NetworkInterface networkInterface : allInterfaces()) {
+            if (!isUsable(networkInterface)) {
+                continue;
+            }
+            List<String> addresses = new ArrayList<>();
+            List<String> broadcasts = new ArrayList<>();
+            for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                InetAddress address = interfaceAddress.getAddress();
+                if (address instanceof Inet4Address inet4Address && !inet4Address.isLoopbackAddress()) {
+                    addresses.add(inet4Address.getHostAddress());
+                }
+                InetAddress broadcast = interfaceAddress.getBroadcast();
+                if (broadcast instanceof Inet4Address inet4Broadcast) {
+                    broadcasts.add(inet4Broadcast.getHostAddress());
+                }
+            }
+            if (!addresses.isEmpty() || !broadcasts.isEmpty()) {
+                snapshots.add(new NetworkInterfaceSnapshot(
+                        networkInterface.getName(),
+                        networkInterface.getDisplayName(),
+                        addresses,
+                        broadcasts
+                ));
+            }
+        }
+        return snapshots;
+    }
+
     private List<NetworkInterface> allInterfaces() {
         try {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();

@@ -6,10 +6,12 @@ com/hexteam/app/ui/TransfersView.class
 com/hexteam/app/files/FileTransfer.class
 com/hexteam/app/persistence/FileTransferRepository.class
 com/hexteam/app/ui/PeersView.class
+com/hexteam/app/discovery/NetworkInterfaceSnapshot.class
 com/hexteam/app/discovery/DiscoveryService.class
 com/hexteam/app/discovery/PeerState.class
 com/hexteam/app/security/Hashing.class
 com/hexteam/app/HexTeamApplication.class
+com/hexteam/app/discovery/DiscoveryDiagnosticsController.class
 com/hexteam/app/security/TrustState.class
 com/hexteam/app/persistence/ChatMessageEntity.class
 com/hexteam/app/files/FileManifest.class

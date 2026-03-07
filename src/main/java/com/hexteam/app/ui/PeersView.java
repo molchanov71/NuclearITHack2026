@@ -8,6 +8,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
@@ -26,6 +27,8 @@ public class PeersView extends VerticalLayout {
         grid.addColumn(PeerDescriptor::signalBaseUrl).setHeader("Signal URL").setAutoWidth(true);
         grid.setItems(peerRegistry.allPeers());
         grid.setSizeFull();
+        UI.getCurrent().setPollInterval(2000);
+        UI.getCurrent().addPollListener(event -> grid.setItems(peerRegistry.allPeers()));
 
         Button refresh = new Button("Обновить", click -> grid.setItems(peerRegistry.allPeers()));
         Button connect = new Button("Connect", click -> {
