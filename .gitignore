@@ -5,3 +5,5 @@
 /build/
 /build-ninja/
 /cmake-build-debug/
+data
+target

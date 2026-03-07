@@ -93,26 +93,34 @@ public class DiscoveryService {
     public void sendAnnounce() {
         DiscoveryAnnounce announce = buildAnnounce();
         byte[] payload = codec.write(announce);
-        List<InetAddress> broadcasts = networkAddressResolver.broadcastAddresses();
-        if (broadcasts.isEmpty()) {
+        List<DiscoveryTarget> targets = networkAddressResolver.discoveryTargets();
+        if (targets.isEmpty()) {
             diagnosticsService.record("discovery", "Не найдено broadcast-адресов для отправки announce");
             return;
         }
-        try (DatagramSocket socket = new DatagramSocket()) {
-            socket.setBroadcast(true);
-            for (InetAddress broadcastAddress : broadcasts) {
+        for (DiscoveryTarget target : targets) {
+            try (DatagramSocket socket = new DatagramSocket(new InetSocketAddress(target.localAddress(), 0))) {
+                socket.setBroadcast(true);
                 DatagramPacket packet = new DatagramPacket(
                         payload,
                         payload.length,
-                        broadcastAddress,
+                        target.broadcastAddress(),
                         properties.getDiscovery().getPort()
                 );
                 socket.send(packet);
-                diagnosticsService.record("discovery", "Отправлен announce seq=" + announce.seq() + " на " + broadcastAddress.getHostAddress());
+                diagnosticsService.record(
+                        "discovery",
+                        "Отправлен announce seq=" + announce.seq()
+                                + " с " + target.localAddress().getHostAddress()
+                                + " на " + target.broadcastAddress().getHostAddress()
+                );
+            } catch (IOException exception) {
+                log.warn("Не удалось отправить discovery announce через {}", target.localAddress().getHostAddress(), exception);
+                diagnosticsService.record(
+                        "discovery",
+                        "Ошибка отправки announce через " + target.localAddress().getHostAddress() + ": " + exception.getMessage()
+                );
             }
-        } catch (IOException exception) {
-            log.warn("Не удалось отправить discovery announce", exception);
-            diagnosticsService.record("discovery", "Ошибка отправки announce: " + exception.getMessage());
         }
     }
 

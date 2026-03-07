@@ -19,19 +19,10 @@ public class NetworkAddressResolver {
      */
 
     public List<InetAddress> broadcastAddresses() {
-        List<InetAddress> broadcasts = new ArrayList<>();
-        for (NetworkInterface networkInterface : allInterfaces()) {
-            if (!isUsable(networkInterface)) {
-                continue;
-            }
-            for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
-                InetAddress broadcast = interfaceAddress.getBroadcast();
-                if (broadcast instanceof Inet4Address) {
-                    broadcasts.add(broadcast);
-                }
-            }
-        }
-        return broadcasts;
+        return discoveryTargets().stream()
+                .map(DiscoveryTarget::broadcastAddress)
+                .distinct()
+                .toList();
     }
 
     public InetAddress resolvePrimaryAddress() {
@@ -77,6 +68,25 @@ public class NetworkAddressResolver {
             }
         }
         return snapshots;
+    }
+
+    public List<DiscoveryTarget> discoveryTargets() {
+        List<DiscoveryTarget> targets = new ArrayList<>();
+        for (NetworkInterface networkInterface : allInterfaces()) {
+            if (!isUsable(networkInterface)) {
+                continue;
+            }
+            for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                InetAddress address = interfaceAddress.getAddress();
+                InetAddress broadcast = interfaceAddress.getBroadcast();
+                if (address instanceof Inet4Address inet4Address
+                        && !inet4Address.isLoopbackAddress()
+                        && broadcast instanceof Inet4Address inet4Broadcast) {
+                    targets.add(new DiscoveryTarget(inet4Address, inet4Broadcast));
+                }
+            }
+        }
+        return targets;
     }
 
     private List<NetworkInterface> allInterfaces() {
